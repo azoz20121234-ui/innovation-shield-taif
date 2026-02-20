@@ -2,36 +2,126 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>منصة الابتكار لتجمع الطائف</title>
+<title>منصة درع الابتكار لتجمع الطائف</title>
 <style>
-body { font-family: sans-serif; direction: rtl; text-align: right; margin: 2em; }
-header { background-color: #f0f0f0; padding: 1em; }
-section { margin-top: 2em; }
-form input, form textarea { display:block; margin-bottom: 1em; width:100%; max-width:400px; }
+body {font-family: sans-serif; direction: rtl; text-align:right; margin: 1em;}
+header {background:#286090; color:white; padding:1em;}
+main {display:flex; flex-direction:column;}
+#ideaForm {margin:1em 0;}
+#ideaForm input, #ideaForm textarea {width:100%; max-width:400px; margin-bottom:0.5em;}
+.board {display:flex; overflow-x:auto;}
+.column {background:#f5f5f5; border:1px solid #ddd; border-radius:4px; margin:0.5em; min-width:200px; flex:1;}
+.column h3 {background:#e9ecef; margin:0; padding:0.5em; font-size:1em;}
+.card {background:white; margin:0.5em; padding:0.5em; border:1px solid #ccc; border-radius:4px; cursor:grab;}
+.dashboard {margin-top:1em;}
 </style>
 </head>
 <body>
 <header>
-<h1>منصة الابتكار لتجمع الطائف</h1>
-<p>شارك أفكارك الإبداعية لنحولها إلى مشاريع نافعة للمجتمع.</p>
+<h1>منصة درع الابتكار لتجمع الطائف</h1>
+<p>اجمع، قيّم، واعتمد الأفكار ثم تابع تنفيذها عبر لوحة كانبان تفاعلية.</p>
 </header>
 
-<section>
+<main>
+<section id="ideaFormSection">
 <h2>إرسال فكرة جديدة</h2>
-<form>
-<label>اسم المبتكر:</label>
-<input type="text" name="name" placeholder="أدخل اسمك">
-<label>البريد الإلكتروني:</label>
-<input type="email" name="email" placeholder="أدخل بريدك الإلكتروني">
-<label>فكرتك:</label>
-<textarea name="idea" rows="5" placeholder="صف فكرتك"></textarea>
-<button type="submit">إرسال</button>
+<form id="ideaForm">
+<input type="text" id="ideaTitle" placeholder="عنوان الفكرة" required>
+<input type="text" id="ideaOwner" placeholder="اسم المبتكر" required>
+<textarea id="ideaDesc" rows="3" placeholder="وصف الفكرة" required></textarea>
+<button type="submit">إضافة الفكرة</button>
 </form>
 </section>
 
-<section>
-<h2>عن المنصة</h2>
-<p>تهدف هذه المنصة إلى جمع الأفكار من أبناء وبنات الطائف، تقييمها وتطويرها لتحويلها إلى مشاريع تخدم المجتمع. هذا النموذج الأولي بسيط ويحتاج إلى تطويرات مستقبلية لإدارة الأفكار ومتابعة تنفيذها.</p>
+<section class="dashboard">
+<h2>لوحة المؤشرات</h2>
+<p id="stats"></p>
 </section>
+
+<section>
+<h2>خريطة الابتكار (كانبان)</h2>
+<div class="board" id="board">
+<div class="column" data-status="submitted">
+<h3>أفكار مقدمة</h3>
+</div>
+<div class="column" data-status="review">
+<h3>قيد التقييم</h3>
+</div>
+<div class="column" data-status="approved">
+<h3>معتمدة</h3>
+</div>
+<div class="column" data-status="inprogress">
+<h3>قيد التنفيذ</h3>
+</div>
+<div class="column" data-status="completed">
+<h3>منجزة</h3>
+</div>
+</div>
+</section>
+</main>
+
+<script>
+// load cards from localStorage
+let ideas = JSON.parse(localStorage.getItem('ideas') || '[]');
+
+function updateBoard() {
+  // clear columns
+  document.querySelectorAll('.column').forEach(col => {
+    // remove cards except header
+    [...col.querySelectorAll('.card')].forEach(card => card.remove());
+  });
+  ideas.forEach((idea, idx) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.draggable = true;
+    card.dataset.index = idx;
+    card.innerHTML = '<strong>' + idea.title + '</strong><br>' + idea.owner;
+    card.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('text/plain', idx);
+    });
+    const col = document.querySelector(`.column[data-status="${idea.status}"]`);
+    if (col) col.appendChild(card);
+  });
+  updateStats();
+}
+
+function updateStats() {
+  const counts = {submitted:0, review:0, approved:0, inprogress:0, completed:0};
+  ideas.forEach(idea => counts[idea.status]++);
+  document.getElementById('stats').textContent =
+    'مقدمة: ' + counts.submitted +
+    ' | قيد التقييم: ' + counts.review +
+    ' | معتمدة: ' + counts.approved +
+    ' | قيد التنفيذ: ' + counts.inprogress +
+    ' | منجزة: ' + counts.completed;
+}
+
+document.getElementById('ideaForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  const title = document.getElementById('ideaTitle').value.trim();
+  const owner = document.getElementById('ideaOwner').value.trim();
+  const desc = document.getElementById('ideaDesc').value.trim();
+  if(title && owner && desc){
+    ideas.push({title, owner, desc, status:'submitted'});
+    localStorage.setItem('ideas', JSON.stringify(ideas));
+    this.reset();
+    updateBoard();
+  }
+});
+
+document.querySelectorAll('.column').forEach(column => {
+  column.addEventListener('dragover', e => {
+    e.preventDefault();
+  });
+  column.addEventListener('drop', e => {
+    const idx = e.dataTransfer.getData('text/plain');
+    ideas[idx].status = column.dataset.status;
+    localStorage.setItem('ideas', JSON.stringify(ideas));
+    updateBoard();
+  });
+});
+
+updateBoard();
+</script>
 </body>
 </html>
