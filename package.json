@@ -1,5 +1,5 @@
 {
-  "name": "innovation-shield",
+  "name": "innovation-shield-taif",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -10,11 +10,11 @@
     "next": "14.2.3",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "@supabase/supabase-js": "^2.45.0"
+    "@supabase/supabase-js": "^2.39.0"
   },
   "devDependencies": {
-    "typescript": "^5.4.5",
-    "@types/react": "^18.2.66",
-    "@types/node": "^20.12.7"
+    "typescript": "^5.4.0",
+    "@types/react": "^18.2.0",
+    "@types/node": "^20.0.0"
   }
 }
