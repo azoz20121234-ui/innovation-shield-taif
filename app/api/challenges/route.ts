@@ -7,6 +7,13 @@ type ChallengeRow = {
   title: string
   description: string | null
   department: string | null
+  innovation_track: string | null
+  challenge_owner: string | null
+  baseline_value: string | null
+  target_value: string | null
+  scope_in: string | null
+  scope_out: string | null
+  execution_constraints: string | null
   success_criteria: string | null
   impact_metric: string | null
   status: string
@@ -82,6 +89,7 @@ export async function GET(req: Request) {
   const url = new URL(req.url)
   const lifecycle = url.searchParams.get("lifecycle")
   const department = url.searchParams.get("department")
+  const track = url.searchParams.get("track")
 
   let query = supabaseAdmin
     .from("challenges")
@@ -90,6 +98,7 @@ export async function GET(req: Request) {
 
   if (lifecycle && lifecycle !== "all") query = query.eq("lifecycle_status", lifecycle)
   if (department && department !== "all") query = query.eq("department", department)
+  if (track && track !== "all") query = query.eq("innovation_track", track)
 
   const { data: challengesData, error: challengesError } = await query
   if (challengesError) return NextResponse.json({ error: challengesError.message }, { status: 500 })
@@ -267,6 +276,13 @@ export async function POST(req: Request) {
         title: body.title,
         description: body.description || null,
         department: body.department || null,
+        innovation_track: body.innovationTrack || null,
+        challenge_owner: body.challengeOwner || null,
+        baseline_value: body.baselineValue || null,
+        target_value: body.targetValue || null,
+        scope_in: body.scopeIn || null,
+        scope_out: body.scopeOut || null,
+        execution_constraints: body.executionConstraints || null,
         success_criteria: body.successCriteria || null,
         impact_metric: body.impactMetric || null,
         status: lifecycleStatus === "closed" ? "closed" : "open",
@@ -288,6 +304,7 @@ export async function POST(req: Request) {
       entityId: data.id,
       metadata: {
         title: data.title,
+        track: data.innovation_track,
         lifecycleStatus: data.lifecycle_status,
         targetIdeas: data.target_ideas,
       },
@@ -323,6 +340,13 @@ export async function PATCH(req: Request) {
     if (body.title !== undefined) payload.title = body.title
     if (body.description !== undefined) payload.description = body.description
     if (body.department !== undefined) payload.department = body.department
+    if (body.innovationTrack !== undefined) payload.innovation_track = body.innovationTrack
+    if (body.challengeOwner !== undefined) payload.challenge_owner = body.challengeOwner
+    if (body.baselineValue !== undefined) payload.baseline_value = body.baselineValue
+    if (body.targetValue !== undefined) payload.target_value = body.targetValue
+    if (body.scopeIn !== undefined) payload.scope_in = body.scopeIn
+    if (body.scopeOut !== undefined) payload.scope_out = body.scopeOut
+    if (body.executionConstraints !== undefined) payload.execution_constraints = body.executionConstraints
     if (body.successCriteria !== undefined) payload.success_criteria = body.successCriteria
     if (body.impactMetric !== undefined) payload.impact_metric = body.impactMetric
     if (body.targetIdeas !== undefined) payload.target_ideas = Number(body.targetIdeas)
