@@ -124,10 +124,20 @@ create table if not exists public.projects (
   updated_at timestamptz not null default now()
 );
 
-alter table public.tasks
-  add constraint tasks_project_id_fk
-  foreign key (project_id) references public.projects(id)
-  on delete cascade;
+alter table if exists public.tasks
+  add column if not exists project_id uuid;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'tasks_project_id_fk'
+  ) then
+    alter table public.tasks
+      add constraint tasks_project_id_fk
+      foreign key (project_id) references public.projects(id)
+      on delete cascade;
+  end if;
+end $$;
 
 create table if not exists public.project_risks (
   id uuid primary key default gen_random_uuid(),
@@ -178,10 +188,36 @@ join (
 where t.is_default = true
 and not exists (select 1 from public.judging_criteria jc where jc.template_id = t.id);
 
-create index if not exists idx_ideas_state on public.ideas(state);
-create index if not exists idx_ideas_challenge_id on public.ideas(challenge_id);
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'ideas' and column_name = 'state'
+  ) then
+    create index if not exists idx_ideas_state on public.ideas(state);
+  end if;
+end $$;
+
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'ideas' and column_name = 'challenge_id'
+  ) then
+    create index if not exists idx_ideas_challenge_id on public.ideas(challenge_id);
+  end if;
+end $$;
+
 create index if not exists idx_projects_idea_id on public.projects(idea_id);
 create index if not exists idx_tasks_project_id on public.tasks(project_id);
 create index if not exists idx_judging_eval_idea_id on public.judging_evaluations(idea_id);
 create index if not exists idx_state_events_idea_id on public.idea_state_events(idea_id);
-create index if not exists idx_audit_logs_entity on public.audit_logs(entity, entity_id);
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'audit_logs' and column_name = 'entity_id'
+  ) then
+    create index if not exists idx_audit_logs_entity on public.audit_logs(entity, entity_id);
+  end if;
+end $$;
