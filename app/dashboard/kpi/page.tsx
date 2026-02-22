@@ -34,6 +34,17 @@ type TrendPoint = {
   ideas: number
   protected: number
   execution: number
+  prototype: number
+  approved: number
+  pending: number
+}
+
+type ForecastPoint = {
+  key: string
+  label: string
+  ideas: number
+  protected: number
+  execution: number
 }
 
 type HeatmapRow = {
@@ -45,6 +56,22 @@ type HeatmapRow = {
   protected: number
 }
 
+type DepartmentRow = {
+  department: string
+  ideas: number
+  executionRate: number
+  protectionRate: number
+  qualityScore: number
+}
+
+type ImpactMetrics = {
+  estimatedFinancialSavingSar: number
+  qualityImprovementIndex: number
+  patientExperienceIndex: number
+  averageTimeToImpactDays: number
+  protectedIdeasImpactRate: number
+}
+
 type Definition = {
   kpi: string
   formula: string
@@ -52,11 +79,27 @@ type Definition = {
   frequency: string
 }
 
+type Drilldown = {
+  byState: {
+    pending: number
+    approved: number
+    prototype: number
+    execution: number
+    protected: number
+  }
+  byDepartment: DepartmentRow[]
+  byMonth: TrendPoint[]
+}
+
 type KpiResponse = {
   rangeDays: number
   cards: KpiCard[]
   trend: TrendPoint[]
+  trendForecast: ForecastPoint[]
   heatmap: HeatmapRow[]
+  departmentComparison: DepartmentRow[]
+  impactMetrics: ImpactMetrics
+  drilldown: Drilldown
   definitions: Definition[]
   exportedAt: string
 }
@@ -104,6 +147,8 @@ export default function KPIPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [selectedDepartment, setSelectedDepartment] = useState("all")
+  const [selectedMonth, setSelectedMonth] = useState("all")
 
   const fetchKpi = useCallback(async (isSilent = false) => {
     if (!isSilent) setLoading(true)
@@ -166,6 +211,39 @@ export default function KPIPage() {
     )
   }, [data])
 
+  const trendWithForecast = useMemo(() => {
+    if (!data) return []
+    const actual = data.trend.map((row) => ({
+      label: row.label,
+      actualIdeas: row.ideas,
+      actualExecution: row.execution,
+      forecastIdeas: null as number | null,
+      forecastExecution: null as number | null,
+    }))
+
+    const forecast = data.trendForecast.map((row) => ({
+      label: `${row.label} (متوقع)`,
+      actualIdeas: null as number | null,
+      actualExecution: null as number | null,
+      forecastIdeas: row.ideas,
+      forecastExecution: row.execution,
+    }))
+
+    return [...actual, ...forecast]
+  }, [data])
+
+  const drillDepartment = useMemo(() => {
+    if (!data) return null
+    if (selectedDepartment === "all") return null
+    return data.departmentComparison.find((row) => row.department === selectedDepartment) || null
+  }, [data, selectedDepartment])
+
+  const drillMonth = useMemo(() => {
+    if (!data) return null
+    if (selectedMonth === "all") return null
+    return data.drilldown.byMonth.find((row) => row.key === selectedMonth) || null
+  }, [data, selectedMonth])
+
   const exportCsv = () => {
     if (!data) return
 
@@ -191,9 +269,9 @@ export default function KPIPage() {
       <section className="rounded-3xl border border-white/20 bg-slate-900/55 p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-semibold text-slate-100">لوحة مؤشرات الابتكار التفاعلية</h1>
+            <h1 className="text-3xl font-semibold text-slate-100">لوحة مؤشرات الابتكار الاستراتيجية</h1>
             <p className="mt-2 text-sm text-slate-300">
-              عرض بصري فوري للمؤشرات مع اتجاهات زمنية، تعريفات KPI، وتحديثات ديناميكية.
+              ذكاء تنبؤي + تحليل أعمق + مقارنة إدارات + مؤشرات أثر + Drill‑Down.
             </p>
           </div>
 
@@ -236,47 +314,14 @@ export default function KPIPage() {
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Link
-          href="/dashboard/challenges"
-          className="rounded-2xl border border-slate-700 bg-slate-900/55 p-4 text-slate-100 transition hover:border-sky-400"
-        >
-          <p className="text-sm font-semibold">فتح تحدي</p>
-          <p className="mt-1 text-xs text-slate-300">إطلاق تحدي جديد مع مؤشرات نجاح</p>
-        </Link>
-        <Link
-          href="/dashboard/new-idea"
-          className="rounded-2xl border border-slate-700 bg-slate-900/55 p-4 text-slate-100 transition hover:border-sky-400"
-        >
-          <p className="text-sm font-semibold">إنشاء فكرة جديدة</p>
-          <p className="mt-1 text-xs text-slate-300">ربط الفكرة مباشرة بمسار التحكيم</p>
-        </Link>
-        <Link
-          href="/dashboard/tasks"
-          className="rounded-2xl border border-slate-700 bg-slate-900/55 p-4 text-slate-100 transition hover:border-sky-400"
-        >
-          <p className="text-sm font-semibold">توزيع المهام</p>
-          <p className="mt-1 text-xs text-slate-300">إدارة تنفيذ المبادرات المعتمدة</p>
-        </Link>
-        <Link
-          href="/dashboard/ai"
-          className="rounded-2xl border border-slate-700 bg-slate-900/55 p-4 text-slate-100 transition hover:border-sky-400"
-        >
-          <p className="text-sm font-semibold">تحليل AI</p>
-          <p className="mt-1 text-xs text-slate-300">تقييم سريع للجدوى والمخاطر</p>
-        </Link>
+        <Link href="/dashboard/challenges" className="rounded-2xl border border-slate-700 bg-slate-900/55 p-4 text-slate-100 transition hover:border-sky-400"><p className="text-sm font-semibold">فتح تحدي</p><p className="mt-1 text-xs text-slate-300">إطلاق تحدي جديد مع مؤشرات نجاح</p></Link>
+        <Link href="/dashboard/new-idea" className="rounded-2xl border border-slate-700 bg-slate-900/55 p-4 text-slate-100 transition hover:border-sky-400"><p className="text-sm font-semibold">إنشاء فكرة جديدة</p><p className="mt-1 text-xs text-slate-300">ربط الفكرة مباشرة بمسار التحكيم</p></Link>
+        <Link href="/dashboard/tasks" className="rounded-2xl border border-slate-700 bg-slate-900/55 p-4 text-slate-100 transition hover:border-sky-400"><p className="text-sm font-semibold">توزيع المهام</p><p className="mt-1 text-xs text-slate-300">إدارة تنفيذ المبادرات المعتمدة</p></Link>
+        <Link href="/dashboard/ai" className="rounded-2xl border border-slate-700 bg-slate-900/55 p-4 text-slate-100 transition hover:border-sky-400"><p className="text-sm font-semibold">تحليل AI</p><p className="mt-1 text-xs text-slate-300">تقييم سريع للجدوى والمخاطر</p></Link>
       </section>
 
-      {loading && (
-        <div className="rounded-2xl border border-slate-700 bg-slate-900/55 p-6 text-slate-300">
-          جارٍ تحميل المؤشرات...
-        </div>
-      )}
-
-      {error && (
-        <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-6 text-red-200">
-          {error}
-        </div>
-      )}
+      {loading && <div className="rounded-2xl border border-slate-700 bg-slate-900/55 p-6 text-slate-300">جارٍ تحميل المؤشرات...</div>}
+      {error && <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-6 text-red-200">{error}</div>}
 
       {data && !loading && !error && (
         <>
@@ -284,38 +329,72 @@ export default function KPIPage() {
             {data.cards.map((card) => (
               <div key={card.key} className="rounded-2xl border border-slate-700 bg-slate-900/55 p-4">
                 <p className="text-sm text-slate-300">{card.title}</p>
-                <p className="mt-1 text-3xl font-semibold text-slate-100">
-                  {card.value}
-                  <span className="mr-1 text-sm text-slate-300">{card.unit}</span>
-                </p>
+                <p className="mt-1 text-3xl font-semibold text-slate-100">{card.value}<span className="mr-1 text-sm text-slate-300">{card.unit}</span></p>
                 <p className="mt-1 text-xs text-slate-400">{card.description}</p>
                 <Sparkline data={card.trend} />
               </div>
             ))}
           </section>
 
+          <section className="grid gap-4 xl:grid-cols-5">
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+              <p className="text-xs text-emerald-200">وفورات مالية تقديرية</p>
+              <p className="mt-1 text-2xl font-semibold text-emerald-100">{data.impactMetrics.estimatedFinancialSavingSar.toLocaleString("en-US")} SAR</p>
+            </div>
+            <div className="rounded-2xl border border-sky-500/30 bg-sky-500/10 p-4">
+              <p className="text-xs text-sky-200">مؤشر تحسين الجودة</p>
+              <p className="mt-1 text-2xl font-semibold text-sky-100">{data.impactMetrics.qualityImprovementIndex}</p>
+            </div>
+            <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-4">
+              <p className="text-xs text-cyan-200">تجربة المريض</p>
+              <p className="mt-1 text-2xl font-semibold text-cyan-100">{data.impactMetrics.patientExperienceIndex}</p>
+            </div>
+            <div className="rounded-2xl border border-violet-500/30 bg-violet-500/10 p-4">
+              <p className="text-xs text-violet-200">متوسط زمن الأثر</p>
+              <p className="mt-1 text-2xl font-semibold text-violet-100">{data.impactMetrics.averageTimeToImpactDays} يوم</p>
+            </div>
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
+              <p className="text-xs text-amber-200">أثر حماية الأفكار</p>
+              <p className="mt-1 text-2xl font-semibold text-amber-100">{data.impactMetrics.protectedIdeasImpactRate}%</p>
+            </div>
+          </section>
+
           <section className="grid gap-4 xl:grid-cols-2">
             <div className="h-96 rounded-2xl border border-slate-700 bg-slate-900/55 p-4">
-              <h2 className="mb-3 text-lg font-semibold text-slate-100">اتجاهات الأفكار والتنفيذ</h2>
+              <h2 className="mb-3 text-lg font-semibold text-slate-100">اتجاهات + تنبؤات</h2>
               <ResponsiveContainer width="100%" height="88%">
-                <LineChart data={data.trend}>
+                <LineChart data={trendWithForecast}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.2)" />
                   <XAxis dataKey="label" stroke="#cbd5e1" />
                   <YAxis stroke="#cbd5e1" allowDecimals={false} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#0f172a",
-                      border: "1px solid rgba(148,163,184,0.35)",
-                    }}
-                  />
+                  <Tooltip contentStyle={{ backgroundColor: "#0f172a", border: "1px solid rgba(148,163,184,0.35)" }} />
                   <Legend />
-                  <Line type="monotone" dataKey="ideas" name="الأفكار" stroke="#38bdf8" strokeWidth={2.5} />
-                  <Line type="monotone" dataKey="execution" name="التنفيذ" stroke="#22c55e" strokeWidth={2.5} />
-                  <Line type="monotone" dataKey="protected" name="المحمية" stroke="#f59e0b" strokeWidth={2.5} />
+                  <Line type="monotone" dataKey="actualIdeas" name="الأفكار (فعلي)" stroke="#38bdf8" strokeWidth={2.5} />
+                  <Line type="monotone" dataKey="forecastIdeas" name="الأفكار (متوقع)" stroke="#38bdf8" strokeDasharray="5 5" strokeWidth={2} />
+                  <Line type="monotone" dataKey="actualExecution" name="التنفيذ (فعلي)" stroke="#22c55e" strokeWidth={2.5} />
+                  <Line type="monotone" dataKey="forecastExecution" name="التنفيذ (متوقع)" stroke="#22c55e" strokeDasharray="5 5" strokeWidth={2} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
 
+            <div className="h-96 rounded-2xl border border-slate-700 bg-slate-900/55 p-4">
+              <h2 className="mb-3 text-lg font-semibold text-slate-100">مقارنة الإدارات</h2>
+              <ResponsiveContainer width="100%" height="88%">
+                <BarChart data={data.departmentComparison}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.2)" />
+                  <XAxis dataKey="department" stroke="#cbd5e1" />
+                  <YAxis stroke="#cbd5e1" allowDecimals={false} />
+                  <Tooltip contentStyle={{ backgroundColor: "#0f172a", border: "1px solid rgba(148,163,184,0.35)" }} />
+                  <Legend />
+                  <Bar dataKey="ideas" name="الأفكار" fill="#38bdf8" />
+                  <Bar dataKey="executionRate" name="تنفيذ %" fill="#22c55e" />
+                  <Bar dataKey="protectionRate" name="حماية %" fill="#f59e0b" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+
+          <section className="grid gap-4 xl:grid-cols-2">
             <div className="h-96 rounded-2xl border border-slate-700 bg-slate-900/55 p-4">
               <h2 className="mb-3 text-lg font-semibold text-slate-100">تدفق المؤشرات الشهرية</h2>
               <ResponsiveContainer width="100%" height="88%">
@@ -323,38 +402,11 @@ export default function KPIPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.2)" />
                   <XAxis dataKey="label" stroke="#cbd5e1" />
                   <YAxis stroke="#cbd5e1" allowDecimals={false} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#0f172a",
-                      border: "1px solid rgba(148,163,184,0.35)",
-                    }}
-                  />
+                  <Tooltip contentStyle={{ backgroundColor: "#0f172a", border: "1px solid rgba(148,163,184,0.35)" }} />
                   <Legend />
                   <Area type="monotone" dataKey="ideas" name="أفكار" stroke="#38bdf8" fill="#38bdf8" fillOpacity={0.25} />
                   <Area type="monotone" dataKey="execution" name="تنفيذ" stroke="#4ade80" fill="#4ade80" fillOpacity={0.2} />
                 </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </section>
-
-          <section className="grid gap-4 xl:grid-cols-2">
-            <div className="h-96 rounded-2xl border border-slate-700 bg-slate-900/55 p-4">
-              <h2 className="mb-3 text-lg font-semibold text-slate-100">مقارنة التنفيذ والحماية</h2>
-              <ResponsiveContainer width="100%" height="88%">
-                <BarChart data={data.trend}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.2)" />
-                  <XAxis dataKey="label" stroke="#cbd5e1" />
-                  <YAxis stroke="#cbd5e1" allowDecimals={false} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#0f172a",
-                      border: "1px solid rgba(148,163,184,0.35)",
-                    }}
-                  />
-                  <Legend />
-                  <Bar dataKey="execution" name="تنفيذ" fill="#22c55e" />
-                  <Bar dataKey="protected" name="محمي" fill="#f59e0b" />
-                </BarChart>
               </ResponsiveContainer>
             </div>
 
@@ -385,6 +437,54 @@ export default function KPIPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-slate-700 bg-slate-900/55 p-4">
+            <h2 className="mb-3 text-lg font-semibold text-slate-100">Drill‑Down</h2>
+            <div className="grid gap-2 md:grid-cols-2">
+              <select value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)} className="rounded-xl border border-slate-700 bg-slate-950/70 p-2 text-sm text-slate-100">
+                <option value="all">اختر إدارة</option>
+                {data.departmentComparison.map((row) => <option key={row.department} value={row.department}>{row.department}</option>)}
+              </select>
+              <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="rounded-xl border border-slate-700 bg-slate-950/70 p-2 text-sm text-slate-100">
+                <option value="all">اختر شهر</option>
+                {data.drilldown.byMonth.map((row) => <option key={row.key} value={row.key}>{row.label}</option>)}
+              </select>
+            </div>
+
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-3 text-xs text-slate-300">
+                <p className="font-semibold text-slate-100">تفصيل الحالة الإجمالي</p>
+                <p className="mt-1">Pending: {data.drilldown.byState.pending}</p>
+                <p>Approved: {data.drilldown.byState.approved}</p>
+                <p>Prototype: {data.drilldown.byState.prototype}</p>
+                <p>Execution: {data.drilldown.byState.execution}</p>
+                <p>Protected: {data.drilldown.byState.protected}</p>
+              </div>
+
+              <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-3 text-xs text-slate-300">
+                <p className="font-semibold text-slate-100">تفصيل الإدارة/الشهر</p>
+                {drillDepartment ? (
+                  <>
+                    <p className="mt-1">الإدارة: {drillDepartment.department}</p>
+                    <p>الأفكار: {drillDepartment.ideas}</p>
+                    <p>تنفيذ: {drillDepartment.executionRate}%</p>
+                    <p>حماية: {drillDepartment.protectionRate}%</p>
+                    <p>جودة: {drillDepartment.qualityScore}</p>
+                  </>
+                ) : (
+                  <p className="mt-1">اختر إدارة لعرض التفاصيل.</p>
+                )}
+                {drillMonth && (
+                  <>
+                    <p className="mt-2">الشهر: {drillMonth.label}</p>
+                    <p>الأفكار: {drillMonth.ideas}</p>
+                    <p>تنفيذ: {drillMonth.execution}</p>
+                    <p>Prototype: {drillMonth.prototype}</p>
+                  </>
+                )}
               </div>
             </div>
           </section>

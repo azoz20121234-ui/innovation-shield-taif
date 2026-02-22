@@ -3,6 +3,8 @@ import { createClient } from "@supabase/supabase-js"
 
 type IdeaRecord = {
   id: string
+  challenge_id?: string | null
+  state?: string | null
   status?: string | null
   created_at?: string | null
   updated_at?: string | null
@@ -11,6 +13,12 @@ type IdeaRecord = {
   ip_state?: string | null
   ip_file_url?: string | null
   ip_reference?: string | null
+  final_judging_score?: number | null
+}
+
+type ChallengeRecord = {
+  id: string
+  department?: string | null
 }
 
 function normalize(value?: string | null) {
@@ -26,15 +34,45 @@ function isProtected(idea: IdeaRecord) {
 }
 
 function toMonthKey(date: Date) {
-  return `${date.getFullYear()}-${date.getMonth() + 1}`
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
 }
 
 function stageOf(idea: IdeaRecord) {
+  const state = normalize(idea.state)
   const status = normalize(idea.status)
+
+  if (["execution_in_progress", "impact_tracking", "protected_published", "approved_for_execution"].includes(state)) return "execution"
+  if (["prototype_ready", "team_formed", "ai_refined"].includes(state)) return "prototype"
+  if (["human_judged", "ai_judged"].includes(state)) return "approved"
+
   if (["execution", "implemented", "done", "inprogress"].includes(status)) return "execution"
   if (["prototype", "pilot"].includes(status)) return "prototype"
   if (["approved", "accepted"].includes(status)) return "approved"
   return "pending"
+}
+
+function regressionForecast(history: number[], points = 3) {
+  if (history.length === 0) return Array.from({ length: points }, () => 0)
+  if (history.length === 1) return Array.from({ length: points }, () => history[0])
+
+  const n = history.length
+  const xMean = (n - 1) / 2
+  const yMean = history.reduce((sum, v) => sum + v, 0) / n
+
+  let num = 0
+  let den = 0
+  for (let i = 0; i < n; i++) {
+    num += (i - xMean) * (history[i] - yMean)
+    den += (i - xMean) ** 2
+  }
+
+  const slope = den === 0 ? 0 : num / den
+  const intercept = yMean - slope * xMean
+
+  return Array.from({ length: points }, (_, idx) => {
+    const x = n + idx
+    return Math.max(0, Math.round(intercept + slope * x))
+  })
 }
 
 export async function GET(req: Request) {
@@ -54,29 +92,38 @@ export async function GET(req: Request) {
     const fromDate = new Date()
     fromDate.setDate(fromDate.getDate() - days)
 
-    const { data, error } = await supabase
-      .from("ideas")
-      .select("*")
-      .gte("created_at", fromDate.toISOString())
-      .order("created_at", { ascending: true })
+    const [ideasRes, challengesRes] = await Promise.all([
+      supabase
+        .from("ideas")
+        .select("*")
+        .gte("created_at", fromDate.toISOString())
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("challenges")
+        .select("id,department"),
+    ])
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    if (ideasRes.error) {
+      return NextResponse.json({ error: ideasRes.error.message }, { status: 500 })
     }
 
-    const ideas = (data || []) as IdeaRecord[]
+    if (challengesRes.error) {
+      return NextResponse.json({ error: challengesRes.error.message }, { status: 500 })
+    }
+
+    const ideas = (ideasRes.data || []) as IdeaRecord[]
+    const challenges = (challengesRes.data || []) as ChallengeRecord[]
+
+    const challengeDept = new Map(challenges.map((row) => [row.id, row.department || "غير مصنف"]))
 
     const totalIdeas = ideas.length
     const protectedIdeas = ideas.filter(isProtected).length
-    const prototypeIdeas = ideas.filter((idea) => ["prototype", "pilot", "execution", "implemented", "done"].includes(normalize(idea.status))).length
-    const executionIdeas = ideas.filter((idea) =>
-      ["execution", "implemented", "done", "inprogress"].includes(normalize(idea.status))
-    ).length
+    const prototypeIdeas = ideas.filter((idea) => ["prototype", "approved", "execution"].includes(stageOf(idea))).length
+    const executionIdeas = ideas.filter((idea) => stageOf(idea) === "execution").length
 
     const transitionDays = ideas
       .map((idea) => {
-        const status = normalize(idea.status)
-        if (!["execution", "implemented", "done", "inprogress"].includes(status)) return null
+        if (stageOf(idea) !== "execution") return null
         if (!idea.created_at || !idea.updated_at) return null
 
         const start = new Date(idea.created_at).getTime()
@@ -87,10 +134,9 @@ export async function GET(req: Request) {
       })
       .filter((value): value is number => value !== null)
 
-    const avgTransitionDays =
-      transitionDays.length > 0
-        ? Math.round((transitionDays.reduce((sum, value) => sum + value, 0) / transitionDays.length) * 10) / 10
-        : null
+    const avgTransitionDays = transitionDays.length > 0
+      ? Math.round((transitionDays.reduce((sum, value) => sum + value, 0) / transitionDays.length) * 10) / 10
+      : null
 
     const protectedRate = totalIdeas > 0 ? Math.round((protectedIdeas / totalIdeas) * 100) : 0
     const prototypeRate = totalIdeas > 0 ? Math.round((prototypeIdeas / totalIdeas) * 100) : 0
@@ -106,39 +152,87 @@ export async function GET(req: Request) {
         ideas: 0,
         protected: 0,
         execution: 0,
+        prototype: 0,
+        approved: 0,
+        pending: 0,
       }
     })
 
-    const heatmapRows = months.map((m) => ({
-      month: m.label,
-      pending: 0,
-      approved: 0,
-      prototype: 0,
-      execution: 0,
-      protected: 0,
-    }))
+    const monthMap = new Map(months.map((row) => [row.key, row]))
 
     ideas.forEach((idea) => {
       if (!idea.created_at) return
       const d = new Date(idea.created_at)
       if (Number.isNaN(d.getTime())) return
       const key = toMonthKey(d)
-      const month = months.find((m) => m.key === key)
-      const heat = heatmapRows.find((m) => m.month === d.toLocaleDateString("ar-SA", { month: "short" }))
-      if (!month || !heat) return
+      const row = monthMap.get(key)
+      if (!row) return
 
-      month.ideas += 1
-      if (isProtected(idea)) {
-        month.protected += 1
-        heat.protected += 1
-      }
-      if (stageOf(idea) === "execution") {
-        month.execution += 1
-      }
-
-      const st = stageOf(idea)
-      heat[st] += 1
+      row.ideas += 1
+      const stage = stageOf(idea)
+      row[stage] += 1
+      if (isProtected(idea)) row.protected += 1
+      if (stage === "execution") row.execution += 1
     })
+
+    const heatmapRows = months.map((m) => ({
+      month: m.label,
+      pending: m.pending,
+      approved: m.approved,
+      prototype: m.prototype,
+      execution: m.execution,
+      protected: m.protected,
+    }))
+
+    const ideasForecast = regressionForecast(months.map((m) => m.ideas), 3)
+    const executionForecast = regressionForecast(months.map((m) => m.execution), 3)
+    const protectedForecast = regressionForecast(months.map((m) => m.protected), 3)
+
+    const forecastMonths = Array.from({ length: 3 }, (_, idx) => {
+      const d = new Date(now.getFullYear(), now.getMonth() + idx + 1, 1)
+      return {
+        key: toMonthKey(d),
+        label: d.toLocaleDateString("ar-SA", { month: "short" }),
+        ideas: ideasForecast[idx],
+        execution: executionForecast[idx],
+        protected: protectedForecast[idx],
+      }
+    })
+
+    const deptMap = new Map<string, { department: string; ideas: number; execution: number; protected: number; judgedScores: number[] }>()
+    ideas.forEach((idea) => {
+      const department = challengeDept.get(idea.challenge_id || "") || "غير مصنف"
+      const row = deptMap.get(department) || { department, ideas: 0, execution: 0, protected: 0, judgedScores: [] }
+      row.ideas += 1
+      if (stageOf(idea) === "execution") row.execution += 1
+      if (isProtected(idea)) row.protected += 1
+      if (idea.final_judging_score !== null && idea.final_judging_score !== undefined) {
+        row.judgedScores.push(Number(idea.final_judging_score))
+      }
+      deptMap.set(department, row)
+    })
+
+    const departmentComparison = Array.from(deptMap.values())
+      .map((row) => ({
+        department: row.department,
+        ideas: row.ideas,
+        executionRate: row.ideas > 0 ? Math.round((row.execution / row.ideas) * 100) : 0,
+        protectionRate: row.ideas > 0 ? Math.round((row.protected / row.ideas) * 100) : 0,
+        qualityScore: row.judgedScores.length > 0 ? Math.round((row.judgedScores.reduce((s, v) => s + v, 0) / row.judgedScores.length) * 10) / 10 : 0,
+      }))
+      .sort((a, b) => b.ideas - a.ideas)
+
+    const avgJudgingScore = ideas
+      .filter((idea) => idea.final_judging_score !== null && idea.final_judging_score !== undefined)
+      .reduce((sum, idea, _, arr) => sum + Number(idea.final_judging_score) / arr.length, 0)
+
+    const impactMetrics = {
+      estimatedFinancialSavingSar: executionIdeas * 120000,
+      qualityImprovementIndex: Math.round((avgJudgingScore || 0) * 10) / 10,
+      patientExperienceIndex: Math.round((executionRate * 0.6 + prototypeRate * 0.4) * 10) / 10,
+      averageTimeToImpactDays: avgTransitionDays || 0,
+      protectedIdeasImpactRate: protectedRate,
+    }
 
     const cards = [
       {
@@ -154,8 +248,8 @@ export async function GET(req: Request) {
         title: "نسبة الوصول للنموذج الأولي",
         value: prototypeRate,
         unit: "%",
-        trend: months.map((m) => (m.ideas > 0 ? Math.round((m.execution / m.ideas) * 100) : 0)),
-        description: "النسبة المئوية للأفكار التي وصلت لمرحلة النموذج الأولي أو بعدها.",
+        trend: months.map((m) => (m.ideas > 0 ? Math.round((m.prototype / m.ideas) * 100) : 0)),
+        description: "النسبة المئوية للأفكار التي وصلت للنموذج الأولي أو بعدها.",
       },
       {
         key: "transition",
@@ -163,7 +257,7 @@ export async function GET(req: Request) {
         value: avgTransitionDays ?? 0,
         unit: "يوم",
         trend: months.map((m) => m.execution),
-        description: "متوسط الأيام من إنشاء الفكرة حتى دخول حالة تنفيذ (باستخدام updated_at).",
+        description: "متوسط الأيام من إنشاء الفكرة حتى دخول حالة تنفيذ.",
       },
       {
         key: "protection",
@@ -185,19 +279,25 @@ export async function GET(req: Request) {
       {
         kpi: "نسبة الوصول للنموذج الأولي",
         formula: "(عدد أفكار prototype/pilot/execution) / إجمالي الأفكار × 100",
-        source: "ideas.status",
+        source: "ideas.state / ideas.status",
         frequency: "يومي",
       },
       {
         kpi: "زمن الانتقال من فكرة إلى تنفيذ",
-        formula: "AVG(updated_at - created_at) للأفكار بحالة تنفيذ",
-        source: "ideas.created_at, ideas.updated_at, ideas.status",
+        formula: "AVG(updated_at - created_at) للأفكار في التنفيذ",
+        source: "ideas.created_at, ideas.updated_at, ideas.state",
         frequency: "أسبوعي",
       },
       {
         kpi: "نسبة الأفكار المحمية",
-        formula: "(عدد الأفكار ذات ip_status/ip_state أو ملف حماية) / إجمالي الأفكار × 100",
+        formula: "(عدد الأفكار المحمية) / إجمالي الأفكار × 100",
         source: "ideas.ip_status, ideas.ip_state, ideas.ip_file_url",
+        frequency: "شهري",
+      },
+      {
+        kpi: "وفورات مالية تقديرية",
+        formula: "عدد أفكار التنفيذ × متوسط وفر معياري",
+        source: "ideas.state + معامل تقديري PMO",
         frequency: "شهري",
       },
     ]
@@ -206,7 +306,21 @@ export async function GET(req: Request) {
       rangeDays: days,
       cards,
       trend: months,
+      trendForecast: forecastMonths,
       heatmap: heatmapRows,
+      departmentComparison,
+      impactMetrics,
+      drilldown: {
+        byState: {
+          pending: ideas.filter((idea) => stageOf(idea) === "pending").length,
+          approved: ideas.filter((idea) => stageOf(idea) === "approved").length,
+          prototype: ideas.filter((idea) => stageOf(idea) === "prototype").length,
+          execution: ideas.filter((idea) => stageOf(idea) === "execution").length,
+          protected: protectedIdeas,
+        },
+        byDepartment: departmentComparison,
+        byMonth: months,
+      },
       definitions,
       quickStats: {
         totalIdeas,
@@ -221,4 +335,3 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Failed to build KPI report." }, { status: 500 })
   }
 }
-
