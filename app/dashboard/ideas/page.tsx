@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { getNextSuggestedState, stateTransitions } from "@/lib/workflow/stateMachine"
+import { useDemoRole } from "@/lib/auth/useDemoRole"
 
 type ChallengeRef = {
   id: string
@@ -103,6 +104,10 @@ function normalizedChallenge(challenges: Idea["challenges"]) {
 }
 
 export default function IdeasPage() {
+  const { capabilities } = useDemoRole()
+  const canCreateIdeas = capabilities.canCreateIdeas
+  const canTransitionIdeas = capabilities.canTransitionIdeas
+  const canUseAiAssistant = capabilities.canUseAiAssistant
   const [ideas, setIdeas] = useState<Idea[]>([])
   const [challenges, setChallenges] = useState<Challenge[]>([])
   const [loading, setLoading] = useState(true)
@@ -240,6 +245,7 @@ export default function IdeasPage() {
   }, [ideas])
 
   const createIdea = async () => {
+    if (!canCreateIdeas) return
     if (!title.trim()) return
     setSaving(true)
 
@@ -271,6 +277,7 @@ export default function IdeasPage() {
   }
 
   const transition = async (idea: Idea, toState: string) => {
+    if (!canTransitionIdeas) return
     try {
       const res = await fetch(`/api/ideas/${idea.id}/transition`, {
         method: "POST",
@@ -298,6 +305,7 @@ export default function IdeasPage() {
   }
 
   const askAssistant = async (idea: Idea) => {
+    if (!canUseAiAssistant) return
     setAssistantLoading(idea.id)
     try {
       const step = idea.state
@@ -351,17 +359,23 @@ export default function IdeasPage() {
       <section className="rounded-3xl border border-white/20 bg-slate-900/55 p-6">
         <h2 className="text-xl font-semibold text-slate-100">إضافة فكرة سريعة</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="عنوان الفكرة" className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100" />
-          <select value={challengeId} onChange={(e) => setChallengeId(e.target.value)} className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100">
+          <input disabled={!canCreateIdeas} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="عنوان الفكرة" className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100 disabled:opacity-60" />
+          <select disabled={!canCreateIdeas} value={challengeId} onChange={(e) => setChallengeId(e.target.value)} className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100 disabled:opacity-60">
             <option value="">بدون ربط تحدي</option>
             {challenges.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
           </select>
-          <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="وصف مختصر" className="md:col-span-2 rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100" />
+          <textarea disabled={!canCreateIdeas} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="وصف مختصر" className="md:col-span-2 rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100 disabled:opacity-60" />
         </div>
-        <button onClick={createIdea} disabled={saving} className="mt-4 rounded-2xl bg-sky-600 px-5 py-2 text-sm font-medium text-white disabled:opacity-50">
+        <button onClick={createIdea} disabled={saving || !canCreateIdeas} className="mt-4 rounded-2xl bg-sky-600 px-5 py-2 text-sm font-medium text-white disabled:opacity-50">
           {saving ? "جارٍ الإنشاء..." : "إنشاء فكرة"}
         </button>
       </section>
+
+      {!canCreateIdeas && !canTransitionIdeas && (
+        <section className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+          وضع القراءة فقط: إنشاء أو تحويل الأفكار متاح فقط حسب الدور.
+        </section>
+      )}
 
       {error && <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-4 text-red-200">{error}</div>}
 
@@ -422,16 +436,17 @@ export default function IdeasPage() {
                       <button
                         key={next}
                         onClick={() => transition(idea, next)}
+                        disabled={!canTransitionIdeas}
                         className={`rounded-xl px-3 py-1.5 text-xs ${
                           suggested === next
                             ? "bg-sky-600 text-white"
                             : "border border-slate-600 bg-slate-900/80 text-slate-200"
-                        }`}
+                        } disabled:opacity-50`}
                       >
                         انتقال إلى: {stateLabels[next] || next}
                       </button>
                     ))}
-                    <button onClick={() => askAssistant(idea)} className="rounded-xl border border-violet-500/40 bg-violet-500/15 px-3 py-1.5 text-xs text-violet-200">
+                    <button onClick={() => askAssistant(idea)} disabled={!canUseAiAssistant} className="rounded-xl border border-violet-500/40 bg-violet-500/15 px-3 py-1.5 text-xs text-violet-200 disabled:opacity-50">
                       {assistantLoading === idea.id ? "AI..." : "تحليل AI"}
                     </button>
                     <button onClick={() => void openDetail(idea.id)} className="rounded-xl border border-cyan-500/40 bg-cyan-500/15 px-3 py-1.5 text-xs text-cyan-200">

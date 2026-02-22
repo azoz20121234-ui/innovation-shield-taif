@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { useDemoRole } from "@/lib/auth/useDemoRole"
 
 type Task = {
   id: string
@@ -49,6 +50,8 @@ type Team = {
 }
 
 export default function ProjectsPage() {
+  const { capabilities } = useDemoRole()
+  const canManageExecution = capabilities.canManageExecution
   const [projects, setProjects] = useState<Project[]>([])
   const [teams, setTeams] = useState<Team[]>([])
   const [loading, setLoading] = useState(true)
@@ -124,6 +127,7 @@ export default function ProjectsPage() {
   }, [filteredProjects])
 
   const updateProject = async (projectId: string, status: string, progress: number) => {
+    if (!canManageExecution) return
     try {
       const res = await fetch("/api/projects", {
         method: "PATCH",
@@ -191,6 +195,11 @@ export default function ProjectsPage() {
           لوحة مشروع كاملة للإدارة: نسبة الإنجاز، المهام المتأخرة، المخاطر المفتوحة، تقدم الفريق، وحالة KPIs.
         </p>
       </section>
+      {!canManageExecution && (
+        <section className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+          وضع القراءة فقط: تحديث حالة المشروع متاح لدور PMO أو الإدارة.
+        </section>
+      )}
 
       {error && <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-4 text-red-200">{error}</div>}
 
@@ -260,9 +269,9 @@ export default function ProjectsPage() {
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <button onClick={() => updateProject(project.id, "in_progress", 35)} className="rounded-xl bg-sky-600 px-3 py-1.5 text-xs text-white">بدء التنفيذ</button>
-                  <button onClick={() => updateProject(project.id, "monitoring", 75)} className="rounded-xl bg-violet-600 px-3 py-1.5 text-xs text-white">انتقال لقياس الأثر</button>
-                  <button onClick={() => updateProject(project.id, "completed", 100)} className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs text-white">إغلاق المشروع</button>
+                  <button disabled={!canManageExecution} onClick={() => updateProject(project.id, "in_progress", 35)} className="rounded-xl bg-sky-600 px-3 py-1.5 text-xs text-white disabled:opacity-50">بدء التنفيذ</button>
+                  <button disabled={!canManageExecution} onClick={() => updateProject(project.id, "monitoring", 75)} className="rounded-xl bg-violet-600 px-3 py-1.5 text-xs text-white disabled:opacity-50">انتقال لقياس الأثر</button>
+                  <button disabled={!canManageExecution} onClick={() => updateProject(project.id, "completed", 100)} className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs text-white disabled:opacity-50">إغلاق المشروع</button>
                   <button onClick={() => exportExecutiveReport(project)} className="rounded-xl border border-cyan-500/40 bg-cyan-500/15 px-3 py-1.5 text-xs text-cyan-200">تصدير تقرير إداري</button>
                 </div>
 

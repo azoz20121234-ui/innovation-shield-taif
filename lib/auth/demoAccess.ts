@@ -104,6 +104,7 @@ export function canMutateApiPath(role: DemoRole, path: string, method: string) {
 
   if (role === "committee") {
     if (path.startsWith("/api/judging")) return true
+    if (path.startsWith("/api/ai/assist")) return true
     if (path.match(/^\/api\/ideas\/[^/]+\/transition$/)) return true
     return false
   }
@@ -115,6 +116,9 @@ export function canMutateApiPath(role: DemoRole, path: string, method: string) {
     if (path.startsWith("/api/team-members")) return true
     if (path.startsWith("/api/tasks/comments")) return true
     if (path.startsWith("/api/challenges")) return true
+    if (path.startsWith("/api/prototypes")) return true
+    if (path.startsWith("/api/ai/assist")) return true
+    if (path.match(/^\/api\/ideas\/[^/]+\/transition$/)) return true
     return false
   }
 
@@ -124,4 +128,17 @@ export function canMutateApiPath(role: DemoRole, path: string, method: string) {
 export function roleLabel(role: DemoRole | null) {
   if (!role) return "غير محدد"
   return roleLabels[role]
+}
+
+export function getRoleCapabilities(role: DemoRole | null) {
+  const isManagement = role === "management"
+  return {
+    canCreateIdeas: role === "innovator" || isManagement,
+    canTransitionIdeas: role === "committee" || isManagement,
+    canManageChallenges: role === "pmo" || isManagement,
+    canJudge: role === "committee" || isManagement,
+    canManageExecution: role === "pmo" || isManagement,
+    canCommentTasks: role === "innovator" || role === "pmo" || isManagement,
+    canUseAiAssistant: role === "innovator" || role === "committee" || role === "pmo" || isManagement,
+  }
 }

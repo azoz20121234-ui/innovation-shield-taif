@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { useDemoRole } from "@/lib/auth/useDemoRole"
 
 type Idea = {
   id: string
@@ -86,6 +87,8 @@ function ideaPriority(idea: Idea) {
 }
 
 export default function JudgingPage() {
+  const { capabilities } = useDemoRole()
+  const canJudge = capabilities.canJudge
   const [ideas, setIdeas] = useState<Idea[]>([])
   const [selectedIdeaId, setSelectedIdeaId] = useState<string>("")
   const [summary, setSummary] = useState<JudgingSummary | null>(null)
@@ -209,6 +212,7 @@ export default function JudgingPage() {
   }, [summary, scores])
 
   const submitHumanEvaluation = async () => {
+    if (!canJudge) return
     if (!selectedIdeaId || !summary) return
 
     setSaving(true)
@@ -248,6 +252,7 @@ export default function JudgingPage() {
   }
 
   const runAutoPreJudging = async () => {
+    if (!canJudge) return
     if (!selectedIdeaId) return
 
     setSaving(true)
@@ -274,6 +279,7 @@ export default function JudgingPage() {
   }
 
   const approveForExecution = async () => {
+    if (!canJudge) return
     if (!selectedIdeaId) return
 
     setSaving(true)
@@ -356,6 +362,11 @@ export default function JudgingPage() {
 
       {error && <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-4 text-red-200">{error}</div>}
       {message && <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 p-4 text-emerald-200">{message}</div>}
+      {!canJudge && (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+          وضع القراءة فقط: إجراءات التحكيم متاحة لدور اللجنة أو الإدارة.
+        </div>
+      )}
 
       <section className="rounded-3xl border border-white/20 bg-slate-900/55 p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -445,7 +456,7 @@ export default function JudgingPage() {
                 <p className="text-sm font-semibold text-violet-100">تنفيذ التحكيم الآلي</p>
                 <button
                   onClick={runAutoPreJudging}
-                  disabled={saving || !["prototype_ready", "ai_judged"].includes(selectedIdea.state)}
+                  disabled={saving || !["prototype_ready", "ai_judged"].includes(selectedIdea.state) || !canJudge}
                   className="mt-3 rounded-xl border border-violet-300/40 bg-violet-500/20 px-4 py-2 text-xs text-violet-100 disabled:opacity-50"
                 >
                   {saving ? "جارٍ التنفيذ..." : "تشغيل التحكيم الآلي الآن"}
@@ -471,6 +482,7 @@ export default function JudgingPage() {
                 <input
                   value={evaluatorName}
                   onChange={(e) => setEvaluatorName(e.target.value)}
+                  disabled={!canJudge}
                   className="w-full rounded-xl border border-slate-700 bg-slate-950/70 p-2 text-sm text-slate-100"
                 />
               </label>
@@ -479,6 +491,7 @@ export default function JudgingPage() {
                 <select
                   value={evaluatorRole}
                   onChange={(e) => setEvaluatorRole(e.target.value)}
+                  disabled={!canJudge}
                   className="w-full rounded-xl border border-slate-700 bg-slate-950/70 p-2 text-sm text-slate-100"
                 >
                   <option value="committee">لجنة</option>
@@ -499,11 +512,13 @@ export default function JudgingPage() {
                     min={0}
                     max={100}
                     value={scores[criterion.id] ?? 70}
+                    disabled={!canJudge}
                     onChange={(e) => setScores((prev) => ({ ...prev, [criterion.id]: Number(e.target.value) }))}
                     className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/70 p-2 text-sm text-slate-100"
                   />
                   <textarea
                     value={comments[criterion.id] || ""}
+                    disabled={!canJudge}
                     onChange={(e) => setComments((prev) => ({ ...prev, [criterion.id]: e.target.value }))}
                     placeholder="ملاحظات المحكّم على هذا المعيار"
                     className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/70 p-2 text-xs text-slate-100"
@@ -517,14 +532,14 @@ export default function JudgingPage() {
 
             <div className="mt-4 flex flex-wrap gap-2">
               <button
-                disabled={saving}
+                disabled={saving || !canJudge}
                 onClick={submitHumanEvaluation}
                 className="rounded-2xl bg-sky-600 px-4 py-2 text-sm text-white disabled:opacity-50"
               >
                 {saving ? "جارٍ الحفظ..." : "حفظ التقييم البشري"}
               </button>
               <button
-                disabled={saving || selectedIdea.state !== "human_judged"}
+                disabled={saving || selectedIdea.state !== "human_judged" || !canJudge}
                 onClick={approveForExecution}
                 className="rounded-2xl bg-emerald-600 px-4 py-2 text-sm text-white disabled:opacity-50"
               >

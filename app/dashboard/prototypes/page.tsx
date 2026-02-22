@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { useDemoRole } from "@/lib/auth/useDemoRole"
 
 type PrototypeIdea = {
   id: string
@@ -18,6 +19,10 @@ const stateLabels: Record<string, string> = {
 }
 
 export default function PrototypesPage() {
+  const { capabilities } = useDemoRole()
+  const canManageExecution = capabilities.canManageExecution
+  const canTransitionIdeas = capabilities.canTransitionIdeas
+  const canUseAiAssistant = capabilities.canUseAiAssistant
   const [items, setItems] = useState<PrototypeIdea[]>([])
   const [loading, setLoading] = useState(true)
   const [savingId, setSavingId] = useState<string | null>(null)
@@ -69,6 +74,7 @@ export default function PrototypesPage() {
   }, [items])
 
   const savePrototype = async (item: PrototypeIdea) => {
+    if (!canManageExecution) return
     setSavingId(item.id)
     setError(null)
 
@@ -95,6 +101,7 @@ export default function PrototypesPage() {
   }
 
   const moveState = async (item: PrototypeIdea, nextState: string) => {
+    if (!canTransitionIdeas) return
     setSavingId(item.id)
     setError(null)
 
@@ -123,6 +130,7 @@ export default function PrototypesPage() {
   }
 
   const generateAiPrototype = async (item: PrototypeIdea) => {
+    if (!canUseAiAssistant) return
     setSavingId(item.id)
     setError(null)
 
@@ -179,6 +187,11 @@ export default function PrototypesPage() {
       </section>
 
       {error && <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-4 text-red-200">{error}</div>}
+      {!canManageExecution && !canTransitionIdeas && (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+          وضع القراءة فقط: حفظ مخرجات النموذج أو تغيير المرحلة متاح حسب الدور.
+        </div>
+      )}
 
       <section className="space-y-4">
         {loading ? (
@@ -207,15 +220,16 @@ export default function PrototypesPage() {
                     [item.id]: e.target.value,
                   }))
                 }
+                disabled={!canManageExecution}
                 placeholder="ملاحظات النموذج الأولي / رابط Figma / سيناريو اختبار"
-                className="mt-3 w-full rounded-xl border border-slate-700 bg-slate-950/70 p-3 text-sm text-slate-100"
+                className="mt-3 w-full rounded-xl border border-slate-700 bg-slate-950/70 p-3 text-sm text-slate-100 disabled:opacity-60"
                 rows={4}
               />
 
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
                   onClick={() => savePrototype(item)}
-                  disabled={savingId === item.id}
+                  disabled={savingId === item.id || !canManageExecution}
                   className="rounded-xl bg-sky-600 px-3 py-1.5 text-xs text-white disabled:opacity-50"
                 >
                   حفظ الملاحظات
@@ -223,7 +237,7 @@ export default function PrototypesPage() {
 
                 <button
                   onClick={() => generateAiPrototype(item)}
-                  disabled={savingId === item.id}
+                  disabled={savingId === item.id || !canUseAiAssistant}
                   className="rounded-xl border border-violet-500/40 bg-violet-500/15 px-3 py-1.5 text-xs text-violet-200 disabled:opacity-50"
                 >
                   توليد اقتراح AI
@@ -232,7 +246,7 @@ export default function PrototypesPage() {
                 {item.state === "ai_refined" && (
                   <button
                     onClick={() => moveState(item, "team_formed")}
-                    disabled={savingId === item.id}
+                    disabled={savingId === item.id || !canTransitionIdeas}
                     className="rounded-xl border border-cyan-500/40 bg-cyan-500/15 px-3 py-1.5 text-xs text-cyan-200 disabled:opacity-50"
                   >
                     تشكيل فريق
@@ -242,7 +256,7 @@ export default function PrototypesPage() {
                 {item.state === "team_formed" && (
                   <button
                     onClick={() => moveState(item, "prototype_ready")}
-                    disabled={savingId === item.id}
+                    disabled={savingId === item.id || !canTransitionIdeas}
                     className="rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-3 py-1.5 text-xs text-emerald-200 disabled:opacity-50"
                   >
                     إعلان جاهزية النموذج

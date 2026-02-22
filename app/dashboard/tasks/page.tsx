@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { useDemoRole } from "@/lib/auth/useDemoRole"
 
 type TaskStatus = "todo" | "inprogress" | "blocked" | "done"
 type TaskPriority = "high" | "medium" | "low"
@@ -51,6 +52,10 @@ const priorityColor: Record<TaskPriority, string> = {
 }
 
 export default function TasksPage() {
+  const { capabilities } = useDemoRole()
+  const canManageExecution = capabilities.canManageExecution
+  const canUseAiAssistant = capabilities.canUseAiAssistant
+  const canCommentTasks = capabilities.canCommentTasks
   const [tasks, setTasks] = useState<TaskRecord[]>([])
   const [ideas, setIdeas] = useState<IdeaOption[]>([])
   const [projects, setProjects] = useState<ProjectOption[]>([])
@@ -299,6 +304,7 @@ export default function TasksPage() {
   }, [tasks, filteredTasks])
 
   const createTask = async () => {
+    if (!canManageExecution) return
     if (!title.trim()) return
 
     setSaving(true)
@@ -349,6 +355,7 @@ export default function TasksPage() {
   }
 
   const quickUpdateTask = async (task: TaskRecord, patch: Partial<TaskRecord> & { blockedReason?: string; lastUpdate?: string }) => {
+    if (!canManageExecution) return
     try {
       const res = await fetch("/api/tasks", {
         method: "PATCH",
@@ -422,6 +429,7 @@ export default function TasksPage() {
   }
 
   const runAssistant = async () => {
+    if (!canUseAiAssistant) return
     setAssistantLoading(true)
     setError(null)
     try {
@@ -462,6 +470,7 @@ export default function TasksPage() {
   }
 
   const addComment = async () => {
+    if (!canCommentTasks) return
     if (!selectedTaskId || !commentText.trim()) return
 
     setSaving(true)
@@ -569,6 +578,11 @@ export default function TasksPage() {
         <h1 className="text-3xl font-semibold text-slate-100">لوحة المهام التنفيذية (محسنة)</h1>
         <p className="mt-2 text-sm text-slate-300">حالات متقدمة، أولويات، تقدم تفصيلي، Mini‑Gantt، مساعد تنفيذ AI، وحوكمة بيانات كاملة.</p>
       </section>
+      {!canManageExecution && (
+        <section className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+          وضع القراءة فقط: تعديل المهام متاح لدور PMO أو الإدارة.
+        </section>
+      )}
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <div className="rounded-2xl border border-slate-700 bg-slate-900/55 p-4"><p className="text-xs text-slate-400">المهام بعد الفلترة</p><p className="mt-1 text-2xl font-semibold text-slate-100">{summary.total}</p></div>
@@ -628,7 +642,7 @@ export default function TasksPage() {
           <input value={lastUpdate} onChange={(e) => setLastUpdate(e.target.value)} placeholder="آخر تحديث تنفيذي" className="md:col-span-3 rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100" />
         </div>
 
-        <button onClick={createTask} disabled={saving} className="mt-4 rounded-2xl bg-sky-600 px-5 py-2 text-sm font-medium text-white disabled:opacity-50">
+        <button onClick={createTask} disabled={saving || !canManageExecution} className="mt-4 rounded-2xl bg-sky-600 px-5 py-2 text-sm font-medium text-white disabled:opacity-50">
           {saving ? "جارٍ الإضافة..." : "إضافة مهمة"}
         </button>
       </section>
@@ -645,7 +659,7 @@ export default function TasksPage() {
           <select value={ideaFilter} onChange={(e) => setIdeaFilter(e.target.value)} className="rounded-xl border border-slate-700 bg-slate-950/70 p-2 text-sm text-slate-100"><option value="all">الفكرة</option>{ideas.map((idea) => <option key={idea.id} value={idea.id}>{idea.title}</option>)}</select>
           <select value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} className="rounded-xl border border-slate-700 bg-slate-950/70 p-2 text-sm text-slate-100"><option value="all">المشروع</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select>
           <select value={dueFilter} onChange={(e) => setDueFilter(e.target.value)} className="rounded-xl border border-slate-700 bg-slate-950/70 p-2 text-sm text-slate-100"><option value="all">الاستحقاق</option><option value="overdue">متأخر</option><option value="thisweek">خلال 7 أيام</option><option value="nodate">بدون تاريخ</option></select>
-          <button onClick={() => void runAssistant()} className="rounded-xl border border-violet-500/40 bg-violet-500/15 p-2 text-xs text-violet-200">{assistantLoading ? "AI..." : "مساعد تنفيذ AI"}</button>
+          <button onClick={() => void runAssistant()} disabled={!canUseAiAssistant} className="rounded-xl border border-violet-500/40 bg-violet-500/15 p-2 text-xs text-violet-200 disabled:opacity-50">{assistantLoading ? "AI..." : "مساعد تنفيذ AI"}</button>
           <button onClick={() => { setSearch(""); setOwnerFilter("all"); setStatusFilter("all"); setPriorityFilter("all"); setIdeaFilter("all"); setProjectFilter("all"); setTeamFilter("all"); setDueFilter("all") }} className="rounded-xl border border-slate-700 bg-slate-900 p-2 text-xs text-slate-200">إعادة ضبط</button>
         </div>
       </section>
@@ -705,7 +719,7 @@ export default function TasksPage() {
           <div className="mt-3 grid gap-3 md:grid-cols-3">
             <input value={commentAuthor} onChange={(e) => setCommentAuthor(e.target.value)} placeholder="اسم المعلّق" className="rounded-xl border border-slate-700 bg-slate-950/70 p-2 text-sm text-slate-100" />
             <input value={attachmentUrl} onChange={(e) => setAttachmentUrl(e.target.value)} placeholder="رابط المرفق (اختياري)" className="rounded-xl border border-slate-700 bg-slate-950/70 p-2 text-sm text-slate-100" />
-            <button onClick={addComment} disabled={saving} className="rounded-xl bg-sky-600 p-2 text-sm text-white disabled:opacity-50">إضافة تعليق</button>
+            <button onClick={addComment} disabled={saving || !canCommentTasks} className="rounded-xl bg-sky-600 p-2 text-sm text-white disabled:opacity-50">إضافة تعليق</button>
           </div>
           <textarea value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="نص التعليق" className="mt-3 w-full rounded-xl border border-slate-700 bg-slate-950/70 p-3 text-sm text-slate-100" rows={3} />
 

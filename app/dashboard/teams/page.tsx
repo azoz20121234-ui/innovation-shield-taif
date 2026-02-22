@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { useDemoRole } from "@/lib/auth/useDemoRole"
 
 type TeamMember = {
   id: string
@@ -72,6 +73,8 @@ const stateLabels: Record<string, string> = {
 }
 
 export default function TeamsPage() {
+  const { capabilities } = useDemoRole()
+  const canManageExecution = capabilities.canManageExecution
   const [teams, setTeams] = useState<TeamRecord[]>([])
   const [challenges, setChallenges] = useState<ChallengeOption[]>([])
   const [loading, setLoading] = useState(true)
@@ -168,6 +171,7 @@ export default function TeamsPage() {
   }, [teams])
 
   const createTeam = async () => {
+    if (!canManageExecution) return
     if (!name.trim() || !leaderName.trim()) return
 
     setSaving(true)
@@ -206,6 +210,7 @@ export default function TeamsPage() {
   }
 
   const addMember = async () => {
+    if (!canManageExecution) return
     if (!memberTeamId || !memberName.trim()) return
 
     setSaving(true)
@@ -237,6 +242,7 @@ export default function TeamsPage() {
   }
 
   const removeMember = async (memberId: string) => {
+    if (!canManageExecution) return
     try {
       const res = await fetch("/api/team-members", {
         method: "DELETE",
@@ -254,6 +260,7 @@ export default function TeamsPage() {
   }
 
   const createTeamTask = async () => {
+    if (!canManageExecution) return
     if (!taskTeamId || !taskTitle.trim()) return
 
     setSaving(true)
@@ -288,6 +295,7 @@ export default function TeamsPage() {
   }
 
   const submitTeamIdea = async () => {
+    if (!canManageExecution) return
     if (!ideaTeamId || !ideaTitle.trim()) return
 
     setSaving(true)
@@ -322,6 +330,7 @@ export default function TeamsPage() {
   }
 
   const updateTeamProgress = async (team: TeamRecord) => {
+    if (!canManageExecution) return
     setSaving(true)
     setError(null)
 
@@ -355,6 +364,11 @@ export default function TeamsPage() {
           تنظيم الفرق، حوكمة القائد الواحد، توزيع المهام، وربط الفريق بالأفكار والمشاريع مع تتبع كامل.
         </p>
       </section>
+      {!canManageExecution && (
+        <section className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+          وضع القراءة فقط: إدارة الفرق والمهام متاحة لدور PMO أو الإدارة.
+        </section>
+      )}
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <div className="rounded-2xl border border-slate-700 bg-slate-900/55 p-4"><p className="text-xs text-slate-400">الفرق</p><p className="mt-1 text-2xl font-semibold text-slate-100">{summary.teams}</p></div>
@@ -377,7 +391,7 @@ export default function TeamsPage() {
           </select>
           <input value={expectedImpact} onChange={(e) => setExpectedImpact(e.target.value)} placeholder="الأثر المتوقع" className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100" />
         </div>
-        <button onClick={createTeam} disabled={saving} className="mt-4 rounded-2xl bg-sky-600 px-5 py-2 text-sm font-medium text-white disabled:opacity-50">
+        <button onClick={createTeam} disabled={saving || !canManageExecution} className="mt-4 rounded-2xl bg-sky-600 px-5 py-2 text-sm font-medium text-white disabled:opacity-50">
           {saving ? "جارٍ الإنشاء..." : "إنشاء الفريق"}
         </button>
       </section>
@@ -392,7 +406,7 @@ export default function TeamsPage() {
             </select>
             <input value={memberName} onChange={(e) => setMemberName(e.target.value)} placeholder="اسم العضو" className="w-full rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100" />
             <input value={memberRole} onChange={(e) => setMemberRole(e.target.value)} placeholder="الدور (member/specialist)" className="w-full rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100" />
-            <button onClick={addMember} disabled={saving} className="w-full rounded-2xl bg-violet-600 px-4 py-2 text-sm text-white disabled:opacity-50">إضافة عضو</button>
+            <button onClick={addMember} disabled={saving || !canManageExecution} className="w-full rounded-2xl bg-violet-600 px-4 py-2 text-sm text-white disabled:opacity-50">إضافة عضو</button>
           </div>
         </div>
 
@@ -406,7 +420,7 @@ export default function TeamsPage() {
             <input value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder="عنوان المهمة" className="w-full rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100" />
             <input value={taskOwner} onChange={(e) => setTaskOwner(e.target.value)} placeholder="المسؤول" className="w-full rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100" />
             <input type="date" value={taskDueDate} onChange={(e) => setTaskDueDate(e.target.value)} className="w-full rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100" />
-            <button onClick={createTeamTask} disabled={saving} className="w-full rounded-2xl bg-sky-600 px-4 py-2 text-sm text-white disabled:opacity-50">إضافة المهمة</button>
+            <button onClick={createTeamTask} disabled={saving || !canManageExecution} className="w-full rounded-2xl bg-sky-600 px-4 py-2 text-sm text-white disabled:opacity-50">إضافة المهمة</button>
           </div>
         </div>
 
@@ -423,7 +437,7 @@ export default function TeamsPage() {
               <option value="">بدون تحدي</option>
               {challenges.map((challenge) => <option key={challenge.id} value={challenge.id}>{challenge.title}</option>)}
             </select>
-            <button onClick={submitTeamIdea} disabled={saving} className="w-full rounded-2xl bg-emerald-600 px-4 py-2 text-sm text-white disabled:opacity-50">تقديم الفكرة</button>
+            <button onClick={submitTeamIdea} disabled={saving || !canManageExecution} className="w-full rounded-2xl bg-emerald-600 px-4 py-2 text-sm text-white disabled:opacity-50">تقديم الفكرة</button>
           </div>
         </div>
       </section>
@@ -458,7 +472,7 @@ export default function TeamsPage() {
                   {(team.team_members || []).map((member) => (
                     <div key={member.id} className="mt-1 flex items-center justify-between gap-2">
                       <span>{member.member_name} ({member.role || "member"})</span>
-                      <button onClick={() => removeMember(member.id)} className="rounded-md border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] text-red-200">حذف</button>
+                      <button disabled={!canManageExecution} onClick={() => removeMember(member.id)} className="rounded-md border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] text-red-200 disabled:opacity-50">حذف</button>
                     </div>
                   ))}
                 </div>
@@ -483,7 +497,7 @@ export default function TeamsPage() {
                   <p className="text-slate-400">تحديث التقدم</p>
                   <input type="number" min={0} max={100} value={progressEdit[team.id] ?? team.progress} onChange={(e) => setProgressEdit((prev) => ({ ...prev, [team.id]: Number(e.target.value) }))} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 p-1.5 text-slate-100" />
                   <textarea value={achievedImpactEdit[team.id] ?? team.achieved_impact ?? ""} onChange={(e) => setAchievedImpactEdit((prev) => ({ ...prev, [team.id]: e.target.value }))} placeholder="الأثر المحقق" className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-900 p-1.5 text-slate-100" rows={2} />
-                  <button onClick={() => updateTeamProgress(team)} disabled={saving} className="mt-2 w-full rounded-lg bg-emerald-600 px-2 py-1 text-xs text-white disabled:opacity-50">حفظ</button>
+                  <button onClick={() => updateTeamProgress(team)} disabled={saving || !canManageExecution} className="mt-2 w-full rounded-lg bg-emerald-600 px-2 py-1 text-xs text-white disabled:opacity-50">حفظ</button>
                 </div>
               </div>
             </div>

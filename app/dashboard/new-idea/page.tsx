@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react"
 import { motion } from "framer-motion"
+import { useDemoRole } from "@/lib/auth/useDemoRole"
 
 type ChallengeOption = {
   id: string
@@ -136,6 +137,9 @@ async function fileToDataUrl(file: File) {
 }
 
 export default function NewIdeaPage() {
+  const { capabilities } = useDemoRole()
+  const canCreateIdeas = capabilities.canCreateIdeas
+  const canUseAiAssistant = capabilities.canUseAiAssistant
   const [form, setForm] = useState<IdeaForm>(defaultForm)
   const [challenges, setChallenges] = useState<ChallengeOption[]>([])
   const [attachments, setAttachments] = useState<AttachmentInput[]>([])
@@ -193,6 +197,7 @@ export default function NewIdeaPage() {
   }
 
   const handleAssist = async () => {
+    if (!canUseAiAssistant || !canCreateIdeas) return
     setAiLoading(true)
     setError(null)
     setMessage(null)
@@ -271,6 +276,7 @@ export default function NewIdeaPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    if (!canCreateIdeas) return
     setLoading(true)
     setError(null)
     setMessage(null)
@@ -339,13 +345,19 @@ export default function NewIdeaPage() {
         </div>
       </div>
 
+      {!canCreateIdeas && (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+          هذا الدور لديه صلاحية عرض فقط. إنشاء فكرة متاح لدور المبتكر أو الإدارة.
+        </div>
+      )}
+
       <div className="rounded-3xl border border-cyan-700/40 bg-cyan-950/20 p-5">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm font-semibold text-cyan-200">مساعد الابتكار الذكي</p>
           <button
             type="button"
             onClick={handleAssist}
-            disabled={aiLoading}
+            disabled={aiLoading || !canCreateIdeas || !canUseAiAssistant}
             className="rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:opacity-60"
           >
             {aiLoading ? "جاري التحليل..." : "تحسين الفكرة بالذكاء الاصطناعي"}
@@ -372,8 +384,9 @@ export default function NewIdeaPage() {
             <input
               value={form.title}
               onChange={(e) => updateForm({ title: e.target.value })}
+              disabled={!canCreateIdeas}
               placeholder="مثال: نظام ذكي لتقليل زمن انتظار المرضى"
-              className="w-full rounded-xl border border-slate-600 bg-slate-950/50 p-3 text-sm text-slate-100"
+              className="w-full rounded-xl border border-slate-600 bg-slate-950/50 p-3 text-sm text-slate-100 disabled:opacity-60"
             />
           </label>
 
@@ -382,7 +395,8 @@ export default function NewIdeaPage() {
             <select
               value={form.challengeId}
               onChange={(e) => updateForm({ challengeId: e.target.value })}
-              className="w-full rounded-xl border border-slate-600 bg-slate-950/50 p-3 text-sm text-slate-100"
+              disabled={!canCreateIdeas}
+              className="w-full rounded-xl border border-slate-600 bg-slate-950/50 p-3 text-sm text-slate-100 disabled:opacity-60"
             >
               <option value="">اختر التحدي</option>
               {challenges.map((challenge) => (
@@ -398,8 +412,9 @@ export default function NewIdeaPage() {
             <textarea
               value={form.problemStatement}
               onChange={(e) => updateForm({ problemStatement: e.target.value })}
+              disabled={!canCreateIdeas}
               placeholder="ما المشكلة التشغيلية أو السريرية الحالية؟ وما أثرها؟"
-              className="h-24 w-full rounded-xl border border-slate-600 bg-slate-950/50 p-3 text-sm text-slate-100"
+              className="h-24 w-full rounded-xl border border-slate-600 bg-slate-950/50 p-3 text-sm text-slate-100 disabled:opacity-60"
             />
           </label>
 
@@ -408,8 +423,9 @@ export default function NewIdeaPage() {
             <textarea
               value={form.proposedSolution}
               onChange={(e) => updateForm({ proposedSolution: e.target.value })}
+              disabled={!canCreateIdeas}
               placeholder="ما الذي ستنفذه لحل المشكلة؟"
-              className="h-24 w-full rounded-xl border border-slate-600 bg-slate-950/50 p-3 text-sm text-slate-100"
+              className="h-24 w-full rounded-xl border border-slate-600 bg-slate-950/50 p-3 text-sm text-slate-100 disabled:opacity-60"
             />
           </label>
 
@@ -418,8 +434,9 @@ export default function NewIdeaPage() {
             <textarea
               value={form.addedValue}
               onChange={(e) => updateForm({ addedValue: e.target.value })}
+              disabled={!canCreateIdeas}
               placeholder="كيف تختلف الفكرة عن الوضع الحالي؟"
-              className="h-24 w-full rounded-xl border border-slate-600 bg-slate-950/50 p-3 text-sm text-slate-100"
+              className="h-24 w-full rounded-xl border border-slate-600 bg-slate-950/50 p-3 text-sm text-slate-100 disabled:opacity-60"
             />
           </label>
 
@@ -428,8 +445,9 @@ export default function NewIdeaPage() {
             <textarea
               value={form.targetAudience}
               onChange={(e) => updateForm({ targetAudience: e.target.value })}
+              disabled={!canCreateIdeas}
               placeholder="المرضى، الممارسون الصحيون، الإدارات التشغيلية..."
-              className="h-24 w-full rounded-xl border border-slate-600 bg-slate-950/50 p-3 text-sm text-slate-100"
+              className="h-24 w-full rounded-xl border border-slate-600 bg-slate-950/50 p-3 text-sm text-slate-100 disabled:opacity-60"
             />
           </label>
 
@@ -438,8 +456,9 @@ export default function NewIdeaPage() {
             <textarea
               value={form.expectedImpact}
               onChange={(e) => updateForm({ expectedImpact: e.target.value })}
+              disabled={!canCreateIdeas}
               placeholder="مثال: خفض زمن الانتظار 20% خلال 90 يوم"
-              className="h-24 w-full rounded-xl border border-slate-600 bg-slate-950/50 p-3 text-sm text-slate-100"
+              className="h-24 w-full rounded-xl border border-slate-600 bg-slate-950/50 p-3 text-sm text-slate-100 disabled:opacity-60"
             />
           </label>
 
@@ -448,8 +467,9 @@ export default function NewIdeaPage() {
             <textarea
               value={form.potentialRisks}
               onChange={(e) => updateForm({ potentialRisks: e.target.value })}
+              disabled={!canCreateIdeas}
               placeholder="خصوصية البيانات، التكامل، التبني التشغيلي..."
-              className="h-24 w-full rounded-xl border border-slate-600 bg-slate-950/50 p-3 text-sm text-slate-100"
+              className="h-24 w-full rounded-xl border border-slate-600 bg-slate-950/50 p-3 text-sm text-slate-100 disabled:opacity-60"
             />
           </label>
 
@@ -458,7 +478,8 @@ export default function NewIdeaPage() {
             <select
               value={form.maturityLevel}
               onChange={(e) => updateForm({ maturityLevel: e.target.value as IdeaForm["maturityLevel"] })}
-              className="w-full rounded-xl border border-slate-600 bg-slate-950/50 p-3 text-sm text-slate-100"
+              disabled={!canCreateIdeas}
+              className="w-full rounded-xl border border-slate-600 bg-slate-950/50 p-3 text-sm text-slate-100 disabled:opacity-60"
             >
               <option value="idea">Idea</option>
               <option value="concept">Concept</option>
@@ -476,6 +497,7 @@ export default function NewIdeaPage() {
                   min={1}
                   max={5}
                   value={form[item.key as keyof IdeaForm] as number}
+                  disabled={!canCreateIdeas}
                   onChange={(e) => updateForm({ [item.key]: Number(e.target.value) } as Partial<IdeaForm>)}
                   className="w-full"
                 />
@@ -491,6 +513,7 @@ export default function NewIdeaPage() {
                 key={example.label}
                 type="button"
                 onClick={() => applyExample(example.apply)}
+                disabled={!canCreateIdeas}
                 className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs text-slate-200 hover:border-cyan-400"
               >
                 {example.label}
@@ -504,6 +527,7 @@ export default function NewIdeaPage() {
               type="file"
               multiple
               accept="image/*,.pdf,.ppt,.pptx,.doc,.docx"
+              disabled={!canCreateIdeas}
               onChange={(e) => void handleFiles(e.target.files)}
               className="block w-full text-xs text-slate-300"
             />
@@ -540,7 +564,7 @@ export default function NewIdeaPage() {
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !canCreateIdeas}
             className="rounded-xl bg-cyan-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:opacity-60"
           >
             {loading ? "جاري الإرسال..." : "إرسال الفكرة"}

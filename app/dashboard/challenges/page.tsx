@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { useDemoRole } from "@/lib/auth/useDemoRole"
 
 type Lifecycle = "draft" | "open" | "in_review" | "closed" | "archived"
 
@@ -156,6 +157,8 @@ const levelClass: Record<string, string> = {
 }
 
 export default function ChallengesPage() {
+  const { capabilities } = useDemoRole()
+  const canManageChallenges = capabilities.canManageChallenges
   const [challenges, setChallenges] = useState<Challenge[]>([])
   const [dashboard, setDashboard] = useState<Dashboard | null>(null)
   const [loading, setLoading] = useState(true)
@@ -288,6 +291,7 @@ export default function ChallengesPage() {
   }
 
   const createChallenge = async (preset?: ChallengeTemplate) => {
+    if (!canManageChallenges) return
     const source = preset || {
       title,
       innovationTrack,
@@ -347,6 +351,7 @@ export default function ChallengesPage() {
   }
 
   const updateLifecycle = async (challenge: Challenge, next: Lifecycle) => {
+    if (!canManageChallenges) return
     try {
       const res = await fetch("/api/challenges", {
         method: "PATCH",
@@ -403,12 +408,18 @@ export default function ChallengesPage() {
               <p className="text-xs text-slate-400">Target: {item.targetValue}</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <button onClick={() => fillFromTemplate(item)} className="rounded-xl border border-slate-600 bg-slate-900/70 px-3 py-1 text-xs text-slate-200">تعبئة النموذج</button>
-                <button onClick={() => createChallenge(item)} disabled={saving} className="rounded-xl border border-cyan-400/50 bg-cyan-500/20 px-3 py-1 text-xs text-cyan-100 disabled:opacity-50">إنشاء مباشر</button>
+                <button onClick={() => createChallenge(item)} disabled={saving || !canManageChallenges} className="rounded-xl border border-cyan-400/50 bg-cyan-500/20 px-3 py-1 text-xs text-cyan-100 disabled:opacity-50">إنشاء مباشر</button>
               </div>
             </div>
           ))}
         </div>
       </section>
+
+      {!canManageChallenges && (
+        <section className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+          وضع القراءة فقط: إنشاء وتحديث التحديات متاح لدور PMO أو الإدارة.
+        </section>
+      )}
 
       {dashboard && (
         <section className="grid gap-4 xl:grid-cols-2">
@@ -450,33 +461,33 @@ export default function ChallengesPage() {
           <section className="rounded-3xl border border-white/20 bg-slate-900/55 p-6">
             <h2 className="text-xl font-semibold text-slate-100">طرح تحدي جديد</h2>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="عنوان التحدي" className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100" />
-              <select value={innovationTrack} onChange={(e) => setInnovationTrack(e.target.value)} className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100">
+              <input disabled={!canManageChallenges} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="عنوان التحدي" className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100 disabled:opacity-60" />
+              <select disabled={!canManageChallenges} value={innovationTrack} onChange={(e) => setInnovationTrack(e.target.value)} className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100 disabled:opacity-60">
                 {innovationTracks.map((track) => <option key={track} value={track}>{track}</option>)}
               </select>
-              <input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="الإدارة المعنية" className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100" />
-              <input value={challengeOwner} onChange={(e) => setChallengeOwner(e.target.value)} placeholder="مالك التحدي / Sponsor" className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100" />
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="وصف المشكلة الحالية" className="md:col-span-2 rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100" />
-              <input value={baselineValue} onChange={(e) => setBaselineValue(e.target.value)} placeholder="Baseline الحالي" className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100" />
-              <input value={targetValue} onChange={(e) => setTargetValue(e.target.value)} placeholder="Target المستهدف" className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100" />
-              <input value={successCriteria} onChange={(e) => setSuccessCriteria(e.target.value)} placeholder="معايير النجاح" className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100" />
-              <input value={impactMetric} onChange={(e) => setImpactMetric(e.target.value)} placeholder="مؤشر الأثر" className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100" />
-              <textarea value={scopeIn} onChange={(e) => setScopeIn(e.target.value)} placeholder="النطاق داخل التحدي (In Scope)" className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100" />
-              <textarea value={scopeOut} onChange={(e) => setScopeOut(e.target.value)} placeholder="النطاق خارج التحدي (Out of Scope)" className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100" />
-              <textarea value={executionConstraints} onChange={(e) => setExecutionConstraints(e.target.value)} placeholder="قيود التنفيذ (ميزانية/وقت/سياسات)" className="md:col-span-2 rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100" />
-              <input type="number" min={1} value={targetIdeas} onChange={(e) => setTargetIdeas(Number(e.target.value || 1))} placeholder="الهدف من الأفكار" className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100" />
-              <select value={lifecycleStatus} onChange={(e) => setLifecycleStatus(e.target.value as Lifecycle)} className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100">
+              <input disabled={!canManageChallenges} value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="الإدارة المعنية" className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100 disabled:opacity-60" />
+              <input disabled={!canManageChallenges} value={challengeOwner} onChange={(e) => setChallengeOwner(e.target.value)} placeholder="مالك التحدي / Sponsor" className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100 disabled:opacity-60" />
+              <textarea disabled={!canManageChallenges} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="وصف المشكلة الحالية" className="md:col-span-2 rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100 disabled:opacity-60" />
+              <input disabled={!canManageChallenges} value={baselineValue} onChange={(e) => setBaselineValue(e.target.value)} placeholder="Baseline الحالي" className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100 disabled:opacity-60" />
+              <input disabled={!canManageChallenges} value={targetValue} onChange={(e) => setTargetValue(e.target.value)} placeholder="Target المستهدف" className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100 disabled:opacity-60" />
+              <input disabled={!canManageChallenges} value={successCriteria} onChange={(e) => setSuccessCriteria(e.target.value)} placeholder="معايير النجاح" className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100 disabled:opacity-60" />
+              <input disabled={!canManageChallenges} value={impactMetric} onChange={(e) => setImpactMetric(e.target.value)} placeholder="مؤشر الأثر" className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100 disabled:opacity-60" />
+              <textarea disabled={!canManageChallenges} value={scopeIn} onChange={(e) => setScopeIn(e.target.value)} placeholder="النطاق داخل التحدي (In Scope)" className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100 disabled:opacity-60" />
+              <textarea disabled={!canManageChallenges} value={scopeOut} onChange={(e) => setScopeOut(e.target.value)} placeholder="النطاق خارج التحدي (Out of Scope)" className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100 disabled:opacity-60" />
+              <textarea disabled={!canManageChallenges} value={executionConstraints} onChange={(e) => setExecutionConstraints(e.target.value)} placeholder="قيود التنفيذ (ميزانية/وقت/سياسات)" className="md:col-span-2 rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100 disabled:opacity-60" />
+              <input disabled={!canManageChallenges} type="number" min={1} value={targetIdeas} onChange={(e) => setTargetIdeas(Number(e.target.value || 1))} placeholder="الهدف من الأفكار" className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100 disabled:opacity-60" />
+              <select disabled={!canManageChallenges} value={lifecycleStatus} onChange={(e) => setLifecycleStatus(e.target.value as Lifecycle)} className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100 disabled:opacity-60">
                 {Object.entries(lifecycleLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
               </select>
-              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100" />
-              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100" />
+              <input disabled={!canManageChallenges} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100 disabled:opacity-60" />
+              <input disabled={!canManageChallenges} type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="rounded-2xl border border-slate-700 bg-slate-950/70 p-3 text-slate-100 disabled:opacity-60" />
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              <button onClick={() => void createChallenge()} disabled={saving} className="rounded-2xl bg-sky-600 px-5 py-2 text-sm font-medium text-white disabled:opacity-50">
+              <button onClick={() => void createChallenge()} disabled={saving || !canManageChallenges} className="rounded-2xl bg-sky-600 px-5 py-2 text-sm font-medium text-white disabled:opacity-50">
                 {saving ? "جارٍ الحفظ..." : "إنشاء التحدي"}
               </button>
-              <button onClick={resetForm} className="rounded-2xl border border-slate-600 bg-slate-900/80 px-5 py-2 text-sm text-slate-200">إعادة تعيين</button>
+              <button onClick={resetForm} disabled={!canManageChallenges} className="rounded-2xl border border-slate-600 bg-slate-900/80 px-5 py-2 text-sm text-slate-200 disabled:opacity-50">إعادة تعيين</button>
             </div>
           </section>
         </section>
@@ -540,7 +551,7 @@ export default function ChallengesPage() {
                     <button
                       key={state}
                       onClick={() => updateLifecycle(item, state)}
-                      disabled={item.lifecycle_status === state}
+                      disabled={item.lifecycle_status === state || !canManageChallenges}
                       className="rounded-xl border border-slate-600 bg-slate-900/80 px-2 py-1 text-[11px] text-slate-200 disabled:opacity-40"
                     >
                       {lifecycleLabels[state]}
