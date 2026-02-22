@@ -1,102 +1,45 @@
-"use client"
-
-import Link from "next/link"
-import { ReactNode } from "react"
-
-export default function DashboardLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({ children }: any) {
   return (
-    <div style={styles.wrapper}>
+    <html lang="ar" dir="rtl">
+      <body className="bg-[#0c1e25] text-white font-sans">
 
-      {/* Sidebar */}
-      <aside style={styles.sidebar}>
-        <div style={styles.logo}>🛡 درع الابتكار</div>
+        <div className="flex h-screen">
 
-        <nav style={styles.nav}>
-          <NavItem href="/dashboard" label="الرئيسية" />
-          <NavItem href="/dashboard/ideas" label="الأفكار" />
-          <NavItem href="#" label="التحكيم" />
-          <NavItem href="#" label="المؤشرات" />
-          <NavItem href="#" label="السياسات" />
-        </nav>
-      </aside>
+          {/* Sidebar */}
+          <aside className="w-64 bg-[#102a33] p-6 border-l border-white/10">
+            <h2 className="text-xl font-bold mb-8">درع الابتكار</h2>
 
-      {/* Main */}
-      <div style={styles.main}>
-        <header style={styles.topbar}>
-          <div>لوحة التحكم التنفيذية</div>
-          <div style={styles.badge}>Innovation System v1.0</div>
-        </header>
+            <nav className="space-y-4 text-sm">
+              <NavItem name="لوحة القيادة" href="/dashboard" />
+              <NavItem name="المبادرات" href="/initiatives" />
+              <NavItem name="التحكيم" href="/committees" />
+              <NavItem name="المخاطر" href="/risk" />
+              <NavItem name="السياسات" href="/policies" />
+              <NavItem name="التقارير" href="/reports" />
+              <NavItem name="التحليلات" href="/analytics" />
+              <NavItem name="الإعدادات" href="/settings" />
+            </nav>
+          </aside>
 
-        <div style={styles.content}>
-          {children}
+          {/* Main */}
+          <main className="flex-1 p-8 overflow-y-auto">
+            {children}
+          </main>
+
         </div>
-      </div>
-    </div>
+
+      </body>
+    </html>
   )
 }
 
-function NavItem({ href, label }: { href: string; label: string }) {
+function NavItem({ name, href }: any) {
   return (
-    <Link href={href} style={styles.navItem}>
-      {label}
-    </Link>
+    <a
+      href={href}
+      className="block p-3 rounded-lg bg-white/5 hover:bg-white/10 transition"
+    >
+      {name}
+    </a>
   )
-}
-
-const styles: any = {
-  wrapper: {
-    display: "flex",
-    minHeight: "100vh",
-    direction: "rtl",
-    fontFamily: "system-ui, sans-serif",
-    background: "radial-gradient(circle at top left, #0f2027, #203a43, #2c5364)",
-    color: "white"
-  },
-  sidebar: {
-    width: "260px",
-    background: "rgba(0,0,0,0.3)",
-    backdropFilter: "blur(20px)",
-    padding: "30px 20px",
-    borderLeft: "1px solid rgba(255,255,255,0.1)"
-  },
-  logo: {
-    fontSize: "20px",
-    fontWeight: "bold",
-    marginBottom: "40px"
-  },
-  nav: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "15px"
-  },
-  navItem: {
-    padding: "12px 16px",
-    borderRadius: "12px",
-    textDecoration: "none",
-    color: "white",
-    background: "rgba(255,255,255,0.05)",
-    transition: "0.2s ease"
-  },
-  main: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column"
-  },
-  topbar: {
-    height: "70px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "0 40px",
-    borderBottom: "1px solid rgba(255,255,255,0.1)",
-    background: "rgba(0,0,0,0.2)",
-    backdropFilter: "blur(20px)"
-  },
-  badge: {
-    fontSize: "12px",
-    opacity: 0.6
-  },
-  content: {
-    padding: "40px"
-  }
 }
