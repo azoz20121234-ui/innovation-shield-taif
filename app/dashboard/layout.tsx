@@ -9,6 +9,8 @@ import {
   ListTodo,
   Layers3,
   PlusSquare,
+  Scale,
+  Rocket,
 } from "lucide-react"
 
 const navItems = [
@@ -19,6 +21,8 @@ const navItems = [
   { href: "/dashboard/ai", label: "مساعد AI", icon: Brain },
   { href: "/dashboard/teams", label: "الفرق", icon: Users },
   { href: "/dashboard/tasks", label: "المهام", icon: ListTodo },
+  { href: "/dashboard/judging", label: "التحكيم", icon: Scale },
+  { href: "/dashboard/projects", label: "التنفيذ", icon: Rocket },
   { href: "/dashboard/kpi", label: "المؤشرات", icon: BarChart3 },
 ]
 
