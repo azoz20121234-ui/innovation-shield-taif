@@ -1,75 +1,88 @@
 import Link from "next/link"
-import { LayoutDashboard, BarChart3, Brain, Lightbulb, Shield } from "lucide-react"
+import {
+  LayoutDashboard,
+  BarChart3,
+  Brain,
+  Lightbulb,
+  Shield,
+  Users,
+  ListTodo,
+  Layers3,
+  PlusSquare,
+} from "lucide-react"
+
+const navItems = [
+  { href: "/dashboard", label: "لوحة القيادة", icon: LayoutDashboard },
+  { href: "/dashboard/challenges", label: "التحديات", icon: Lightbulb },
+  { href: "/dashboard/new-idea", label: "تقديم فكرة", icon: PlusSquare },
+  { href: "/dashboard/ideas", label: "الأفكار", icon: Layers3 },
+  { href: "/dashboard/ai", label: "مساعد AI", icon: Brain },
+  { href: "/dashboard/teams", label: "الفرق", icon: Users },
+  { href: "/dashboard/tasks", label: "المهام", icon: ListTodo },
+  { href: "/dashboard/kpi", label: "المؤشرات", icon: BarChart3 },
+]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen flex relative text-white overflow-hidden">
-
-      {/* Background Gradient Layers */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#0f2027] via-[#203a43] to-[#2c5364]" />
-      <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-cyan-500/20 blur-[120px] rounded-full" />
-      <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-purple-500/20 blur-[120px] rounded-full" />
-
-      <div className="relative flex w-full">
-
-        {/* Sidebar Glass */}
-        <aside className="w-72 backdrop-blur-xl bg-white/5 border-r border-white/10 p-8 flex flex-col justify-between">
-
+    <div dir="rtl" className="relative min-h-screen overflow-hidden bg-[#f4f6f9] text-[#0f172a]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(2,132,199,0.16),transparent_35%),radial-gradient(circle_at_85%_20%,rgba(14,165,233,0.12),transparent_40%),linear-gradient(180deg,#f8fafc_0%,#eef3f8_60%,#ecf2f8_100%)]" />
+      <div className="relative mx-auto flex min-h-screen w-full max-w-[1700px] p-4 lg:p-6">
+        <aside className="glass-surface hidden w-72 flex-col justify-between rounded-3xl p-6 lg:flex">
           <div>
-            <div className="flex items-center gap-3 mb-12">
-              <Shield className="text-cyan-400" />
-              <h1 className="text-xl font-semibold tracking-wide">
-                Innovation Shield
-              </h1>
+            <div className="mb-10 flex items-center gap-3">
+              <div className="rounded-2xl bg-[#0f172a] p-2.5 text-white">
+                <Shield size={20} />
+              </div>
+              <div>
+                <h1 className="text-lg font-semibold text-[#0f172a]">درع الابتكار</h1>
+                <p className="text-xs text-[#475569]">تجمع الطائف الصحي</p>
+              </div>
             </div>
 
-            <nav className="space-y-5 text-sm">
-              <Link href="/dashboard" className="flex items-center gap-3 hover:text-cyan-300 transition">
-                <LayoutDashboard size={18}/> الرئيسية
-              </Link>
-
-              <Link href="/dashboard/challenges" className="flex items-center gap-3 hover:text-cyan-300 transition">
-                <Lightbulb size={18}/> التحديات
-              </Link>
-
-              <Link href="/dashboard/kpi" className="flex items-center gap-3 hover:text-cyan-300 transition">
-                <BarChart3 size={18}/> المؤشرات
-              </Link>
-
-              <Link href="/dashboard/ai" className="flex items-center gap-3 hover:text-cyan-300 transition">
-                <Brain size={18}/> الذكاء الاصطناعي
-              </Link>
+            <nav className="space-y-1.5">
+              {navItems.map((item) => {
+                const Icon = item.icon
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="group flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-[#334155] transition hover:bg-white hover:text-[#0f172a]"
+                  >
+                    <Icon size={17} className="text-[#0ea5e9] transition group-hover:text-[#0369a1]" />
+                    {item.label}
+                  </Link>
+                )
+              })}
             </nav>
           </div>
 
-          <div className="text-xs text-white/40">
-            Executive Edition
+          <div className="rounded-2xl border border-white/70 bg-white/70 p-4">
+            <p className="text-xs text-[#64748b]">الحالة التشغيلية</p>
+            <p className="mt-1 text-sm font-semibold text-[#0f172a]">منصة حكومية - إصدار تنفيذي</p>
+            <p className="mt-2 text-xs text-[#0ea5e9]">AI + تحكيم بشري + تنفيذ</p>
           </div>
         </aside>
 
-        {/* Main */}
-        <div className="flex-1 flex flex-col">
-
-          {/* Topbar Glass */}
-          <header className="h-20 backdrop-blur-xl bg-white/5 border-b border-white/10 flex items-center justify-between px-10">
-            <h2 className="text-sm text-white/70 tracking-wide">
-              Executive Dashboard
-            </h2>
-
+        <div className="flex min-w-0 flex-1 flex-col lg:mr-6">
+          <header className="glass-surface mb-4 flex h-20 items-center justify-between rounded-3xl px-6">
             <div className="flex items-center gap-4">
-              <div className="px-4 py-1 rounded-full bg-green-500/20 text-green-300 text-xs">
-                Live
+              <div className="rounded-full border border-[#bae6fd] bg-[#e0f2fe] px-3 py-1 text-xs font-medium text-[#0369a1]">
+                Ready
               </div>
-              <div className="w-9 h-9 rounded-full bg-cyan-400/50 backdrop-blur-lg border border-white/20" />
+              <h2 className="text-sm font-medium tracking-wide text-[#334155]">
+                رحلة الابتكار المؤسسية - Innovation Shield
+              </h2>
+            </div>
+
+            <div className="rounded-full bg-white p-1.5 shadow-sm">
+              <div className="h-8 w-8 rounded-full bg-[linear-gradient(135deg,#0ea5e9,#2563eb)]" />
             </div>
           </header>
 
-          <main className="p-14 flex-1">
+          <main className="glass-surface min-h-[calc(100vh-9.5rem)] flex-1 rounded-3xl p-6 md:p-8">
             {children}
           </main>
-
         </div>
-
       </div>
     </div>
   )
