@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { cookies } from "next/headers"
 import {
   LayoutDashboard,
   BarChart3,
@@ -12,6 +13,7 @@ import {
   Scale,
   Rocket,
 } from "lucide-react"
+import { canAccessDashboardPath, decodeDemoSession, DEMO_SESSION_COOKIE, parseLegacyRole, roleLabel } from "@/lib/auth/demoAccess"
 
 const navItems = [
   { href: "/dashboard", label: "لوحة القيادة", icon: LayoutDashboard },
@@ -26,7 +28,14 @@ const navItems = [
   { href: "/dashboard/kpi", label: "المؤشرات", icon: BarChart3 },
 ]
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const cookieStore = await cookies()
+  const role =
+    decodeDemoSession(cookieStore.get(DEMO_SESSION_COOKIE)?.value) ||
+    parseLegacyRole(cookieStore.get("role")?.value)
+
+  const filteredNav = role ? navItems.filter((item) => canAccessDashboardPath(role, item.href)) : navItems
+
   return (
     <div dir="rtl" className="relative min-h-screen overflow-hidden bg-[#020817] text-slate-100">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_10%,rgba(14,165,233,0.18),transparent_35%),radial-gradient(circle_at_85%_15%,rgba(56,189,248,0.1),transparent_40%),radial-gradient(circle_at_40%_80%,rgba(30,64,175,0.15),transparent_42%),linear-gradient(180deg,#020617_0%,#07152b_48%,#0b1c33_100%)]" />
@@ -44,7 +53,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
 
             <nav className="space-y-1.5">
-              {navItems.map((item) => {
+              {filteredNav.map((item) => {
                 const Icon = item.icon
                 return (
                   <Link
@@ -73,13 +82,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <div className="rounded-full border border-sky-300/40 bg-sky-300/15 px-3 py-1 text-xs font-medium text-sky-200">
                 Ready
               </div>
+              <div className="rounded-full border border-emerald-300/40 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-200">
+                الدور: {roleLabel(role)}
+              </div>
               <h2 className="text-sm font-medium tracking-wide text-slate-200">
                 رحلة الابتكار المؤسسية - Innovation Shield
               </h2>
             </div>
 
-            <div className="rounded-full bg-white/15 p-1.5">
-              <div className="h-8 w-8 rounded-full bg-[linear-gradient(135deg,#0ea5e9,#2563eb)]" />
+            <div className="flex items-center gap-3">
+              <Link
+                href="/api/auth/demo-logout"
+                className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-slate-200 hover:bg-white/20"
+              >
+                تبديل الدور
+              </Link>
+              <div className="rounded-full bg-white/15 p-1.5">
+                <div className="h-8 w-8 rounded-full bg-[linear-gradient(135deg,#0ea5e9,#2563eb)]" />
+              </div>
             </div>
           </header>
 
