@@ -10,18 +10,26 @@ export async function GET(req: Request) {
   const maturityLevel = url.searchParams.get("maturityLevel")
   const impactContains = url.searchParams.get("impactContains")
 
-  let query = supabaseAdmin
-    .from("ideas")
-    .select("*, challenges(id,title,department)")
-    .order("created_at", { ascending: false })
+  const buildQuery = (withDepartment: boolean) => {
+    let query = supabaseAdmin
+      .from("ideas")
+      .select(withDepartment ? "*, challenges(id,title,department)" : "*, challenges(id,title)")
+      .order("created_at", { ascending: false })
 
-  if (state) query = query.eq("state", state)
-  if (challengeId) query = query.eq("challenge_id", challengeId)
-  if (maturityLevel) query = query.eq("maturity_level", maturityLevel)
-  if (department) query = query.eq("challenges.department", department)
-  if (impactContains) query = query.ilike("expected_impact", `%${impactContains}%`)
+    if (state) query = query.eq("state", state)
+    if (challengeId) query = query.eq("challenge_id", challengeId)
+    if (maturityLevel) query = query.eq("maturity_level", maturityLevel)
+    if (withDepartment && department) query = query.eq("challenges.department", department)
+    if (impactContains) query = query.ilike("expected_impact", `%${impactContains}%`)
+    return query
+  }
 
-  const { data, error } = await query
+  let { data, error } = await buildQuery(true)
+  if (error && /department|challenges_\\d+\\.department/i.test(error.message || "")) {
+    const retry = await buildQuery(false)
+    data = retry.data
+    error = retry.error
+  }
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   return NextResponse.json({ data: data || [] })

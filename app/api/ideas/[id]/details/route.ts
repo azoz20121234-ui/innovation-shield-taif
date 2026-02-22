@@ -9,12 +9,21 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   try {
     const { id } = await params
 
-    const [{ data: idea, error: ideaErr }, { data: events, error: evErr }, { data: tasks, error: taskErr }, { data: files, error: fileErr }, { data: evaluations, error: evalErr }, { data: criteria, error: criteriaErr }] = await Promise.all([
+    const fetchIdea = async (withDepartment: boolean) =>
       supabaseAdmin
         .from("ideas")
-        .select("*, challenges(title,department)")
+        .select(withDepartment ? "*, challenges(title,department)" : "*, challenges(title)")
         .eq("id", id)
-        .single(),
+        .single()
+
+    let { data: idea, error: ideaErr } = await fetchIdea(true)
+    if (ideaErr && /department|challenges_\\d+\\.department/i.test(ideaErr.message || "")) {
+      const retry = await fetchIdea(false)
+      idea = retry.data
+      ideaErr = retry.error
+    }
+
+    const [{ data: events, error: evErr }, { data: tasks, error: taskErr }, { data: files, error: fileErr }, { data: evaluations, error: evalErr }, { data: criteria, error: criteriaErr }] = await Promise.all([
       supabaseAdmin
         .from("idea_state_events")
         .select("id,from_state,to_state,action,notes,actor_id,actor_role,created_at")
