@@ -4,6 +4,7 @@ import { useState } from "react"
 import { AlertTriangle, Bot, CopyCheck, Files, Gauge, ShieldCheck, Sparkles } from "lucide-react"
 
 type AnalysisResult = {
+  mode?: "live" | "fallback"
   summary: string
   pitch: string
   feasibility: string[]
@@ -46,51 +47,6 @@ const aiRoleCards = [
   },
 ]
 
-function extractIdeaLabel(text: string) {
-  const firstLine = text
-    .split("\n")
-    .map((line) => line.trim())
-    .find(Boolean)
-
-  const sentence = firstLine?.split(/[.!؟]/).find(Boolean)?.trim()
-  if (!sentence) return "الفكرة المقترحة"
-  return sentence.slice(0, 80)
-}
-
-function buildAnalysis(idea: string): AnalysisResult {
-  const ideaLabel = extractIdeaLabel(idea)
-
-  return {
-    summary: `الفكرة "${ideaLabel}" واعدة وقابلة للتنفيذ إذا تم ربطها بتحدٍ مؤسسي واضح وخط أساس قابل للقياس.` ,
-    pitch:
-      "مبادرة ذكية لتطوير الخدمة الصحية عبر تقليل الهدر وتحسين تجربة المستفيد، من خلال حل قابل للتوسع مدعوم ببيانات أثر واضحة.",
-    feasibility: [
-      "الأثر المتوقع: خفض زمن الإجراء أو الانتظار بنسبة مبدئية 15-25%.",
-      "الجدوى التشغيلية: قابل للتجربة خلال 8 أسابيع ضمن نطاق MVP.",
-      "الاعتمادية: يتطلب مالك مبادرة، فريق تنفيذي، ومؤشر نجاح معتمد.",
-    ],
-    prototypeOutputs: [
-      "Wireframe لشاشة إدخال التحدي وربطها بالمؤشرات.",
-      "Wireframe لسير العمل الحالي مقابل المقترح.",
-      "نموذج رحلة المستخدم مع نقاط الألم والتحسين.",
-    ],
-    riskScan: [
-      "خصوصية: تأكد من إخفاء البيانات الحساسة قبل أي تدريب أو تحليل.",
-      "تشغيل: خطر مقاومة التغيير، يوصى بخطة تواصل داخلية.",
-      "تكامل: يلزم تقييم مبكر لربط الحل مع الأنظمة الحالية.",
-    ],
-    duplicationScan: [
-      "لا توجد مشابهة مباشرة في نطاق نفس القسم (تقدير أولي).",
-      "يوصى بمقارنة نهائية مع قاعدة المبادرات السابقة قبل الاعتماد.",
-    ],
-    ipGuidance: [
-      "النوع المقترح: حق مؤلف + أسرار تجارية (مبدئيًا).",
-      "جمع الأدلة: المتطلبات، النسخ، الاختبارات، وقرارات التحكيم.",
-      "إنشاء مسودة ملف حماية IP مرتبطة برقم المبادرة.",
-    ],
-  }
-}
-
 export default function AIPage() {
   const [idea, setIdea] = useState("")
   const [result, setResult] = useState<AnalysisResult | null>(null)
@@ -107,9 +63,20 @@ export default function AIPage() {
     setLoading(true)
 
     try {
-      setResult(buildAnalysis(idea))
-    } catch {
-      setError("تعذر تحليل الفكرة حاليًا. حاول مرة أخرى.")
+      const res = await fetch("/api/ai/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idea }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || "تعذر تحليل الفكرة حاليًا.")
+      }
+
+      setResult(data as AnalysisResult)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "حدث خطأ غير متوقع")
     } finally {
       setLoading(false)
     }
@@ -117,11 +84,11 @@ export default function AIPage() {
 
   return (
     <div className="space-y-7" dir="rtl">
-      <section className="rounded-3xl border border-white/75 bg-white/70 p-6">
-        <h1 className="text-3xl font-semibold text-slate-900">مساعد الابتكار الذكي</h1>
-        <p className="mt-2 max-w-4xl text-slate-600">
-          محرك ذكاء اصطناعي مخصص لمنصة الابتكار في تجمع الطائف الصحي لدعم التحليل،
-          بناء النموذج الأولي، التقييم، وحماية الملكية.
+      <section className="rounded-3xl border border-white/20 bg-slate-900/55 p-6">
+        <h1 className="text-3xl font-semibold text-slate-100">مساعد الابتكار الذكي</h1>
+        <p className="mt-2 max-w-4xl text-slate-300">
+          محرك ذكاء اصطناعي لمنصة الابتكار في تجمع الطائف الصحي لدعم التحليل، بناء
+          النموذج الأولي، التقييم، وحماية الملكية.
         </p>
       </section>
 
@@ -129,25 +96,25 @@ export default function AIPage() {
         {aiRoleCards.map((item) => {
           const Icon = item.icon
           return (
-            <div key={item.title} className="rounded-2xl border border-slate-200 bg-white p-4">
-              <div className="mb-3 inline-flex rounded-xl bg-sky-100 p-2 text-sky-700">
+            <div key={item.title} className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
+              <div className="mb-3 inline-flex rounded-xl bg-sky-400/15 p-2 text-sky-300">
                 <Icon size={16} />
               </div>
-              <h2 className="text-base font-semibold text-slate-900">{item.title}</h2>
-              <p className="mt-1 text-sm text-slate-600">{item.description}</p>
+              <h2 className="text-base font-semibold text-slate-100">{item.title}</h2>
+              <p className="mt-1 text-sm text-slate-300">{item.description}</p>
             </div>
           )
         })}
       </section>
 
-      <section className="rounded-3xl border border-white/75 bg-white/70 p-6">
-        <h2 className="text-xl font-semibold text-slate-900">تحليل فكرة الآن</h2>
-        <p className="mt-1 text-sm text-slate-600">
+      <section className="rounded-3xl border border-white/20 bg-slate-900/55 p-6">
+        <h2 className="text-xl font-semibold text-slate-100">تحليل فكرة الآن</h2>
+        <p className="mt-1 text-sm text-slate-300">
           أدخل الفكرة ليتم توليد الملخص التنفيذي، Pitch، جدوى، مخاطر، كشف تكرار، وتوصيف حماية الملكية.
         </p>
 
         <textarea
-          className="mt-4 h-40 w-full rounded-2xl border border-slate-200 bg-white p-4 text-slate-800"
+          className="mt-4 h-40 w-full rounded-2xl border border-slate-700 bg-slate-950/70 p-4 text-slate-100"
           placeholder="مثال: منصة لتقليل زمن انتظار المرضى عبر تنسيق ذكي للمواعيد والتحويلات..."
           value={idea}
           onChange={(e) => setIdea(e.target.value)}
@@ -163,71 +130,77 @@ export default function AIPage() {
       </section>
 
       {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>
+        <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-4 text-red-200">{error}</div>
+      )}
+
+      {result?.mode === "fallback" && (
+        <div className="rounded-2xl border border-amber-300/40 bg-amber-400/10 p-4 text-amber-100">
+          التحليل يعمل بوضع احتياطي. لإتاحة الربط الحقيقي مع OpenAI أضف `OPENAI_API_KEY` في إعدادات البيئة.
+        </div>
       )}
 
       {result && (
-        <section className="rounded-3xl border border-white/75 bg-white/70 p-6">
-          <h2 className="mb-4 text-xl font-semibold text-slate-900">مخرجات الذكاء الاصطناعي</h2>
+        <section className="rounded-3xl border border-white/20 bg-slate-900/55 p-6">
+          <h2 className="mb-4 text-xl font-semibold text-slate-100">مخرجات الذكاء الاصطناعي</h2>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-              <h3 className="font-semibold text-slate-900">الملخص التنفيذي</h3>
-              <p className="mt-2 text-sm text-slate-600">{result.summary}</p>
+            <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
+              <h3 className="font-semibold text-slate-100">الملخص التنفيذي</h3>
+              <p className="mt-2 text-sm text-slate-300">{result.summary}</p>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-              <h3 className="font-semibold text-slate-900">Pitch المقترح</h3>
-              <p className="mt-2 text-sm text-slate-600">{result.pitch}</p>
+            <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
+              <h3 className="font-semibold text-slate-100">Pitch المقترح</h3>
+              <p className="mt-2 text-sm text-slate-300">{result.pitch}</p>
             </div>
           </div>
 
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-              <h3 className="font-semibold text-slate-900">تحليل الجدوى</h3>
-              <ul className="mt-2 space-y-2 text-sm text-slate-600">
+            <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
+              <h3 className="font-semibold text-slate-100">تحليل الجدوى</h3>
+              <ul className="mt-2 space-y-2 text-sm text-slate-300">
                 {result.feasibility.map((item) => (
-                  <li key={item} className="rounded-xl bg-slate-50 px-3 py-2">{item}</li>
+                  <li key={item} className="rounded-xl bg-slate-950/70 px-3 py-2">{item}</li>
                 ))}
               </ul>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-              <h3 className="font-semibold text-slate-900">مخرجات النموذج الأولي</h3>
-              <ul className="mt-2 space-y-2 text-sm text-slate-600">
+            <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
+              <h3 className="font-semibold text-slate-100">مخرجات النموذج الأولي</h3>
+              <ul className="mt-2 space-y-2 text-sm text-slate-300">
                 {result.prototypeOutputs.map((item) => (
-                  <li key={item} className="rounded-xl bg-slate-50 px-3 py-2">{item}</li>
+                  <li key={item} className="rounded-xl bg-slate-950/70 px-3 py-2">{item}</li>
                 ))}
               </ul>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-              <h3 className="font-semibold text-slate-900">تقييم المخاطر</h3>
-              <ul className="mt-2 space-y-2 text-sm text-slate-600">
+            <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
+              <h3 className="font-semibold text-slate-100">تقييم المخاطر</h3>
+              <ul className="mt-2 space-y-2 text-sm text-slate-300">
                 {result.riskScan.map((item) => (
-                  <li key={item} className="rounded-xl bg-slate-50 px-3 py-2">{item}</li>
+                  <li key={item} className="rounded-xl bg-slate-950/70 px-3 py-2">{item}</li>
                 ))}
               </ul>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-              <h3 className="font-semibold text-slate-900">كشف التكرار</h3>
-              <ul className="mt-2 space-y-2 text-sm text-slate-600">
+            <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
+              <h3 className="font-semibold text-slate-100">كشف التكرار</h3>
+              <ul className="mt-2 space-y-2 text-sm text-slate-300">
                 {result.duplicationScan.map((item) => (
-                  <li key={item} className="rounded-xl bg-slate-50 px-3 py-2">{item}</li>
+                  <li key={item} className="rounded-xl bg-slate-950/70 px-3 py-2">{item}</li>
                 ))}
               </ul>
             </div>
           </div>
 
-          <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="mb-2 flex items-center gap-2 text-slate-900">
+          <div className="mt-4 rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
+            <div className="mb-2 flex items-center gap-2 text-slate-100">
               <Files size={16} />
               <h3 className="font-semibold">توصيف حماية الملكية</h3>
             </div>
-            <ul className="space-y-2 text-sm text-slate-600">
+            <ul className="space-y-2 text-sm text-slate-300">
               {result.ipGuidance.map((item) => (
-                <li key={item} className="rounded-xl bg-slate-50 px-3 py-2">{item}</li>
+                <li key={item} className="rounded-xl bg-slate-950/70 px-3 py-2">{item}</li>
               ))}
             </ul>
           </div>
