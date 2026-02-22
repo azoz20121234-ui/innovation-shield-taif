@@ -1,126 +1,78 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
-import { useRouter } from "next/navigation";
+import { useState } from "react"
+import { createClient } from "@supabase/supabase-js"
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 export default function RegisterPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage("");
+  const handleRegister = async () => {
+    setLoading(true)
+    setError(null)
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
-    });
+    })
 
     if (error) {
-      setMessage("❌ " + error.message);
+      setError(error.message)
     } else {
-      setMessage("✅ تم إنشاء الحساب بنجاح! تحقق من بريدك الإلكتروني.");
-      setTimeout(() => {
-        router.push("/");
-      }, 3000);
+      alert("تم إنشاء الحساب 🎉")
+      console.log(data)
     }
 
-    setLoading(false);
-  };
+    setLoading(false)
+  }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h1 style={styles.title}>إنشاء حساب 🚀</h1>
-        <p style={styles.subtitle}>منصة درع الابتكار</p>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f2027] via-[#203a43] to-[#2c5364]">
+      <div className="bg-white/10 backdrop-blur-xl p-10 rounded-2xl w-[380px] shadow-2xl border border-white/20">
+        <h1 className="text-3xl font-bold text-white text-center mb-2">
+          إنشاء حساب 🚀
+        </h1>
+        <p className="text-gray-300 text-center mb-6">
+          منصة درع الابتكار
+        </p>
 
-        <form onSubmit={handleRegister} style={styles.form}>
-          <input
-            type="email"
-            placeholder="البريد الإلكتروني"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={styles.input}
-          />
+        <input
+          type="email"
+          placeholder="البريد الإلكتروني"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full mb-4 p-3 rounded-lg bg-white/20 text-white placeholder-gray-300 focus:outline-none"
+        />
 
-          <input
-            type="password"
-            placeholder="كلمة المرور"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={styles.input}
-          />
+        <input
+          type="password"
+          placeholder="كلمة المرور"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full mb-4 p-3 rounded-lg bg-white/20 text-white placeholder-gray-300 focus:outline-none"
+        />
 
-          <button type="submit" style={styles.button} disabled={loading}>
-            {loading ? "جاري الإنشاء..." : "إنشاء الحساب"}
-          </button>
-        </form>
+        <button
+          onClick={handleRegister}
+          disabled={loading}
+          className="w-full bg-blue-500 hover:bg-blue-600 transition text-white p-3 rounded-lg font-semibold"
+        >
+          {loading ? "جارٍ الإنشاء..." : "إنشاء الحساب"}
+        </button>
 
-        {message && <p style={styles.message}>{message}</p>}
+        {error && (
+          <p className="text-red-400 text-center mt-4">
+            {error}
+          </p>
+        )}
       </div>
     </div>
-  );
+  )
 }
-
-const styles: any = {
-  container: {
-    height: "100vh",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    background:
-      "linear-gradient(135deg, #0f2027, #203a43, #2c5364)",
-    fontFamily: "system-ui",
-  },
-  card: {
-    width: "400px",
-    padding: "40px",
-    borderRadius: "20px",
-    background: "rgba(255,255,255,0.05)",
-    backdropFilter: "blur(20px)",
-    boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
-    color: "white",
-    textAlign: "center",
-  },
-  title: {
-    marginBottom: "10px",
-    fontSize: "28px",
-  },
-  subtitle: {
-    marginBottom: "30px",
-    opacity: 0.7,
-  },
-  form: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "15px",
-  },
-  input: {
-    padding: "14px",
-    borderRadius: "12px",
-    border: "none",
-    outline: "none",
-    fontSize: "14px",
-  },
-  button: {
-    padding: "14px",
-    borderRadius: "12px",
-    border: "none",
-    background: "#00c6ff",
-    color: "black",
-    fontWeight: "bold",
-    cursor: "pointer",
-    transition: "0.3s",
-  },
-  message: {
-    marginTop: "20px",
-    fontSize: "14px",
-  },
-};
