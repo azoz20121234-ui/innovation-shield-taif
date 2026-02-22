@@ -1,25 +1,9 @@
 "use client"
 
-import { useState } from "react"
-
-type Idea = {
-  id: number
-  title: string
-  status: "draft" | "review" | "approved"
-}
+import { useInnovation } from "@/context/InnovationContext"
 
 export default function IdeasBoard() {
-  const [ideas, setIdeas] = useState<Idea[]>([
-    { id: 1, title: "نظام فرز ذكي للطوارئ", status: "draft" },
-    { id: 2, title: "لوحة متابعة الأسرة", status: "review" },
-    { id: 3, title: "نظام ذكاء اصطناعي للتحاليل", status: "approved" },
-  ])
-
-  const moveIdea = (id: number, newStatus: Idea["status"]) => {
-    setIdeas(prev =>
-      prev.map(i => i.id === id ? { ...i, status: newStatus } : i)
-    )
-  }
+  const { ideas, moveIdea } = useInnovation()
 
   const columns = [
     { key: "draft", label: "مسودة" },
@@ -28,14 +12,16 @@ export default function IdeasBoard() {
   ]
 
   return (
-    <div style={styles.board}>
+    <div style={{ display: "flex", gap: 30 }}>
       {columns.map(col => (
         <div key={col.key} style={styles.column}>
           <h3>{col.label}</h3>
+
           {ideas.filter(i => i.status === col.key).map(idea => (
             <div key={idea.id} style={styles.card}>
               <p>{idea.title}</p>
-              <div style={styles.actions}>
+
+              <div style={{ marginTop: 10 }}>
                 {col.key !== "draft" && (
                   <button onClick={() => moveIdea(idea.id, "draft")}>⬅</button>
                 )}
@@ -55,25 +41,16 @@ export default function IdeasBoard() {
 }
 
 const styles: any = {
-  board: {
-    display: "flex",
-    gap: "30px"
-  },
   column: {
     flex: 1,
     background: "rgba(255,255,255,0.05)",
-    padding: "20px",
-    borderRadius: "20px"
+    padding: 20,
+    borderRadius: 20
   },
   card: {
     background: "rgba(255,255,255,0.1)",
-    padding: "15px",
-    borderRadius: "12px",
-    marginBottom: "10px"
-  },
-  actions: {
-    display: "flex",
-    gap: "5px",
-    marginTop: "10px"
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 10
   }
 }
