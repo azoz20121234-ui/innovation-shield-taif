@@ -27,6 +27,7 @@ export async function POST(req: Request) {
       .from("ideas")
       .insert({
         challenge_id: body.challengeId || null,
+        team_id: body.teamId || null,
         title: body.title,
         description: body.description || null,
         owner_id: body.ownerId || null,
@@ -53,7 +54,7 @@ export async function POST(req: Request) {
       action: "IDEA_CREATED",
       entity: "idea",
       entityId: data.id,
-      metadata: { title: data.title, challengeId: data.challenge_id },
+      metadata: { title: data.title, challengeId: data.challenge_id, teamId: data.team_id },
     })
 
     return NextResponse.json({ data })

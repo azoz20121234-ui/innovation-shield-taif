@@ -10,6 +10,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "teamId and memberName are required" }, { status: 400 })
     }
 
+    const requestedRole = String(body.role || "").toLowerCase()
+    if (requestedRole === "leader") {
+      const { data: existingLeader, error: leaderErr } = await supabaseAdmin
+        .from("team_members")
+        .select("id")
+        .eq("team_id", body.teamId)
+        .ilike("role", "leader")
+        .maybeSingle()
+
+      if (leaderErr) return NextResponse.json({ error: leaderErr.message }, { status: 500 })
+      if (existingLeader) {
+        return NextResponse.json({ error: "يوجد قائد حالي للفريق، يجب استبداله أولاً" }, { status: 400 })
+      }
+    }
+
     const { data, error } = await supabaseAdmin
       .from("team_members")
       .insert({
@@ -43,6 +58,18 @@ export async function DELETE(req: Request) {
 
     if (!body.memberId) {
       return NextResponse.json({ error: "memberId is required" }, { status: 400 })
+    }
+
+    const { data: member, error: memberErr } = await supabaseAdmin
+      .from("team_members")
+      .select("id,team_id,member_name,role")
+      .eq("id", body.memberId)
+      .single()
+
+    if (memberErr) return NextResponse.json({ error: memberErr.message }, { status: 500 })
+
+    if (String(member.role || "").toLowerCase() === "leader") {
+      return NextResponse.json({ error: "لا يمكن حذف القائد مباشرة، قم بتعيين قائد بديل أولاً" }, { status: 400 })
     }
 
     const { data, error } = await supabaseAdmin

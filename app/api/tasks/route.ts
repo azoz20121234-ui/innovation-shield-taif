@@ -8,15 +8,17 @@ export async function GET(req: Request) {
   const url = new URL(req.url)
   const ideaId = url.searchParams.get("ideaId")
   const projectId = url.searchParams.get("projectId")
+  const teamId = url.searchParams.get("teamId")
   const status = url.searchParams.get("status")
 
   let query = supabaseAdmin
     .from("tasks")
-    .select("id,title,description,owner_name,status,due_date,idea_id,project_id,created_at,updated_at")
+    .select("id,title,description,owner_name,status,due_date,idea_id,project_id,team_id,created_at,updated_at")
     .order("created_at", { ascending: false })
 
   if (ideaId) query = query.eq("idea_id", ideaId)
   if (projectId) query = query.eq("project_id", projectId)
+  if (teamId) query = query.eq("team_id", teamId)
   if (status) query = query.eq("status", status)
 
   const { data, error } = await query
@@ -39,6 +41,7 @@ export async function POST(req: Request) {
         status: (body.status as TaskStatus) || "todo",
         idea_id: body.ideaId || null,
         project_id: body.projectId || null,
+        team_id: body.teamId || null,
       })
       .select("*")
       .single()
@@ -54,6 +57,7 @@ export async function POST(req: Request) {
         title: data.title,
         ideaId: data.idea_id,
         projectId: data.project_id,
+        teamId: data.team_id,
       },
     })
 
@@ -80,6 +84,7 @@ export async function PATCH(req: Request) {
     if (body.ownerName !== undefined) payload.owner_name = body.ownerName
     if (body.dueDate !== undefined) payload.due_date = body.dueDate
     if (body.status !== undefined) payload.status = body.status
+    if (body.teamId !== undefined) payload.team_id = body.teamId
 
     const { data, error } = await supabaseAdmin
       .from("tasks")
@@ -96,8 +101,9 @@ export async function PATCH(req: Request) {
       entity: "task",
       entityId: body.id,
       metadata: {
-        status: body.status,
-        title: body.title,
+        status: data.status,
+        title: data.title,
+        teamId: data.team_id,
       },
     })
 
@@ -106,4 +112,3 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Failed to update task" }, { status: 500 })
   }
 }
-
