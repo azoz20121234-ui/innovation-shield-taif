@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { AlertTriangle, Bot, CopyCheck, Files, Gauge, ShieldCheck, Sparkles, Users } from "lucide-react"
 
 type Block = {
@@ -30,6 +31,23 @@ type TeamAssistant = {
   operationalRisks?: string[]
 }
 
+type QualityAssessment = {
+  ideaQualityScore: number
+  readinessLevel: string
+  aiSuccessPrediction: number
+}
+
+type Routing = {
+  recommendedNextStep: string
+  judgingReady: boolean
+  executionReady: boolean
+  links?: {
+    judging?: string
+    execution?: string
+    refine?: string
+  }
+}
+
 type AnalysisResult = {
   mode?: "live" | "fallback"
   summary: string
@@ -43,44 +61,29 @@ type AnalysisResult = {
   prototypeAssistant?: PrototypeAssistant
   advancedImpact?: AdvancedImpact
   teamAssistant?: TeamAssistant
+  qualityAssessment?: QualityAssessment
+  routing?: Routing
+}
+
+type HistoryRow = {
+  id: string
+  step: string
+  prompt: string | null
+  created_at: string
+  response?: {
+    summary?: string
+    qualityAssessment?: { ideaQualityScore?: number }
+  }
 }
 
 const aiRoleCards = [
-  {
-    title: "مساعد ابتكار ذكي",
-    description: "تحويل وصف الفكرة إلى ملخص تنفيذي وPitch.",
-    icon: Bot,
-  },
-  {
-    title: "تحليل الفجوات",
-    description: "تحديد الموجود والناقص وما يلزم قبل التحكيم.",
-    icon: Gauge,
-  },
-  {
-    title: "مساعد النموذج الأولي",
-    description: "User Flow + Journey Map + سيناريوهات + API Blueprint.",
-    icon: Sparkles,
-  },
-  {
-    title: "تحليل أثر متقدم",
-    description: "وفورات مالية وجودة وتجربة مريض مع مقارنة مشابهة.",
-    icon: AlertTriangle,
-  },
-  {
-    title: "مساعد الفريق",
-    description: "اقتراح أدوار وتوزيع مهام وتحديثات جاهزة وتحليل مخاطر تشغيلية.",
-    icon: Users,
-  },
-  {
-    title: "توصيف حماية الملكية",
-    description: "اقتراح نوع الحماية وتوليد مسودة ملف رفع.",
-    icon: ShieldCheck,
-  },
-  {
-    title: "كاشف التكرار",
-    description: "مقارنة الفكرة بقاعدة داخلية وخارجية لتقليل التكرار.",
-    icon: CopyCheck,
-  },
+  { title: "مساعد ابتكار ذكي", description: "تحويل وصف الفكرة إلى ملخص تنفيذي وPitch.", icon: Bot },
+  { title: "تحليل الفجوات", description: "تحديد الموجود والناقص وما يلزم قبل التحكيم.", icon: Gauge },
+  { title: "مساعد النموذج الأولي", description: "User Flow + Journey Map + سيناريوهات + API Blueprint.", icon: Sparkles },
+  { title: "تحليل أثر متقدم", description: "وفورات مالية وجودة وتجربة مريض مع مقارنة مشابهة.", icon: AlertTriangle },
+  { title: "مساعد الفريق", description: "اقتراح أدوار وتوزيع مهام وتحديثات جاهزة وتحليل مخاطر تشغيلية.", icon: Users },
+  { title: "توصيف حماية الملكية", description: "اقتراح نوع الحماية وتوليد مسودة ملف رفع.", icon: ShieldCheck },
+  { title: "كاشف التكرار", description: "مقارنة الفكرة بقاعدة داخلية وخارجية لتقليل التكرار.", icon: CopyCheck },
 ]
 
 function ListBlock({ title, items }: { title: string; items?: string[] }) {
@@ -100,12 +103,26 @@ function ListBlock({ title, items }: { title: string; items?: string[] }) {
 export default function AIPage() {
   const [idea, setIdea] = useState("")
   const [result, setResult] = useState<AnalysisResult | null>(null)
+  const [history, setHistory] = useState<HistoryRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [mode, setMode] = useState<"beginner" | "advanced">("beginner")
+  const [autoAnalyze, setAutoAnalyze] = useState(false)
 
-  const analyze = async () => {
+  const loadHistory = async () => {
+    try {
+      const res = await fetch("/api/ai/history?limit=12")
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "تعذر تحميل سجل التحليلات")
+      setHistory(json.data || [])
+    } catch {
+      setHistory([])
+    }
+  }
+
+  const analyze = useCallback(async (isAuto = false) => {
     if (!idea.trim()) {
-      setError("يرجى إدخال فكرة أو تحدٍ قبل التحليل.")
+      if (!isAuto) setError("يرجى إدخال فكرة أو تحدٍ قبل التحليل.")
       return
     }
 
@@ -116,28 +133,44 @@ export default function AIPage() {
       const res = await fetch("/api/ai/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idea }),
+        body: JSON.stringify({ idea, mode, auto: isAuto }),
       })
 
       const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data.error || "تعذر تحليل الفكرة حاليًا.")
-      }
+      if (!res.ok) throw new Error(data.error || "تعذر تحليل الفكرة حاليًا.")
 
       setResult(data as AnalysisResult)
+      await loadHistory()
     } catch (err) {
       setError(err instanceof Error ? err.message : "حدث خطأ غير متوقع")
     } finally {
       setLoading(false)
     }
-  }
+  }, [idea, mode])
+
+  useEffect(() => {
+    void loadHistory()
+  }, [])
+
+  useEffect(() => {
+    if (!autoAnalyze) return
+    if (idea.trim().length < 30) return
+
+    const timer = setTimeout(() => {
+      void analyze(true)
+    }, 900)
+
+    return () => clearTimeout(timer)
+  }, [idea, mode, autoAnalyze, analyze])
+
+  const quality = useMemo(() => result?.qualityAssessment?.ideaQualityScore || 0, [result])
 
   return (
     <div className="space-y-7" dir="rtl">
       <section className="rounded-3xl border border-white/20 bg-slate-900/55 p-6">
-        <h1 className="text-3xl font-semibold text-slate-100">مساعد الابتكار الذكي (مستشار متكامل)</h1>
+        <h1 className="text-3xl font-semibold text-slate-100">مساعد الابتكار الذكي (مستشار ابتكار وطني)</h1>
         <p className="mt-2 max-w-4xl text-slate-300">
-          تحليل فجوات + مساعد نموذج أولي + تحليل أثر متقدم + مساعد فريق، لدعم المبتكر والفريق والمحكم والإدارة.
+          يدعم دورة الابتكار كاملة مع تقييم جودة، سجل تحليلات، وضع مبتدئ/متقدم، تحليل تلقائي، وربط مباشر بالتحكيم والتنفيذ.
         </p>
       </section>
 
@@ -146,9 +179,7 @@ export default function AIPage() {
           const Icon = item.icon
           return (
             <div key={item.title} className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
-              <div className="mb-3 inline-flex rounded-xl bg-sky-400/15 p-2 text-sky-300">
-                <Icon size={16} />
-              </div>
+              <div className="mb-3 inline-flex rounded-xl bg-sky-400/15 p-2 text-sky-300"><Icon size={16} /></div>
               <h2 className="text-base font-semibold text-slate-100">{item.title}</h2>
               <p className="mt-1 text-sm text-slate-300">{item.description}</p>
             </div>
@@ -157,10 +188,17 @@ export default function AIPage() {
       </section>
 
       <section className="rounded-3xl border border-white/20 bg-slate-900/55 p-6">
-        <h2 className="text-xl font-semibold text-slate-100">تحليل فكرة الآن</h2>
-        <p className="mt-1 text-sm text-slate-300">
-          أدخل الفكرة لتوليد تحليل متكامل من الفجوات حتى خطة الفريق والتحكيم.
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-xl font-semibold text-slate-100">تحليل فكرة الآن</h2>
+          <select value={mode} onChange={(e) => setMode(e.target.value as "beginner" | "advanced")} className="rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-xs text-slate-100">
+            <option value="beginner">وضع مبتدئ</option>
+            <option value="advanced">وضع متقدم</option>
+          </select>
+          <label className="inline-flex items-center gap-2 text-xs text-slate-300">
+            <input type="checkbox" checked={autoAnalyze} onChange={(e) => setAutoAnalyze(e.target.checked)} />
+            تحليل تلقائي
+          </label>
+        </div>
 
         <textarea
           className="mt-4 h-40 w-full rounded-2xl border border-slate-700 bg-slate-950/70 p-4 text-slate-100"
@@ -170,7 +208,7 @@ export default function AIPage() {
         />
 
         <button
-          onClick={analyze}
+          onClick={() => void analyze(false)}
           disabled={loading}
           className="mt-4 rounded-2xl bg-sky-600 px-6 py-3 text-sm font-medium text-white transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -178,9 +216,7 @@ export default function AIPage() {
         </button>
       </section>
 
-      {error && (
-        <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-4 text-red-200">{error}</div>
-      )}
+      {error && <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-4 text-red-200">{error}</div>}
 
       {result?.mode === "fallback" && (
         <div className="rounded-2xl border border-amber-300/40 bg-amber-400/10 p-4 text-amber-100">
@@ -192,12 +228,32 @@ export default function AIPage() {
         <section className="rounded-3xl border border-white/20 bg-slate-900/55 p-6">
           <h2 className="mb-4 text-xl font-semibold text-slate-100">مخرجات الذكاء الاصطناعي</h2>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-sky-500/30 bg-sky-500/10 p-4 text-sky-100">
+              <p className="text-xs">Idea Quality Score</p>
+              <p className="mt-1 text-2xl font-semibold">{quality}</p>
+            </div>
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-100">
+              <p className="text-xs">جاهزية الفكرة</p>
+              <p className="mt-1 text-sm font-semibold">{result.qualityAssessment?.readinessLevel || "-"}</p>
+            </div>
+            <div className="rounded-2xl border border-violet-500/30 bg-violet-500/10 p-4 text-violet-100">
+              <p className="text-xs">احتمالية النجاح</p>
+              <p className="mt-1 text-2xl font-semibold">{result.qualityAssessment?.aiSuccessPrediction || "-"}%</p>
+            </div>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link href={result.routing?.links?.judging || "/dashboard/judging"} className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs text-slate-100">الانتقال للتحكيم</Link>
+            <Link href={result.routing?.links?.execution || "/dashboard/projects"} className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs text-slate-100">الانتقال للتنفيذ</Link>
+            <Link href={result.routing?.links?.refine || "/dashboard/new-idea"} className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs text-slate-100">تحسين الفكرة</Link>
+          </div>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
             <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
               <h3 className="font-semibold text-slate-100">الملخص التنفيذي</h3>
               <p className="mt-2 text-sm text-slate-300">{result.summary}</p>
             </div>
-
             <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
               <h3 className="font-semibold text-slate-100">Pitch المقترح</h3>
               <p className="mt-2 text-sm text-slate-300">{result.pitch}</p>
@@ -212,14 +268,9 @@ export default function AIPage() {
           </div>
 
           <div className="mt-4 rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
-            <div className="mb-2 flex items-center gap-2 text-slate-100">
-              <Files size={16} />
-              <h3 className="font-semibold">توصيف حماية الملكية</h3>
-            </div>
+            <div className="mb-2 flex items-center gap-2 text-slate-100"><Files size={16} /><h3 className="font-semibold">توصيف حماية الملكية</h3></div>
             <ul className="space-y-2 text-sm text-slate-300">
-              {result.ipGuidance.map((item, idx) => (
-                <li key={`ip-${idx}`} className="rounded-xl bg-slate-950/70 px-3 py-2">{item}</li>
-              ))}
+              {result.ipGuidance.map((item, idx) => <li key={`ip-${idx}`} className="rounded-xl bg-slate-950/70 px-3 py-2">{item}</li>)}
             </ul>
           </div>
 
@@ -244,7 +295,6 @@ export default function AIPage() {
               <p className="mt-2 text-sm text-slate-300">تحسين تجربة المريض: {result.advancedImpact?.patientExperienceImprovement || "-"}</p>
               <p className="mt-2 text-sm text-slate-300">مقارنة مشاريع مشابهة: {result.advancedImpact?.similarProjectsComparison || "-"}</p>
             </div>
-
             <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
               <h3 className="font-semibold text-slate-100">مساعد الفريق</h3>
               <ListBlock title="توزيع المهام المقترح" items={result.teamAssistant?.taskDistribution} />
@@ -255,6 +305,23 @@ export default function AIPage() {
           </div>
         </section>
       )}
+
+      <section className="rounded-3xl border border-white/20 bg-slate-900/55 p-6">
+        <h2 className="text-xl font-semibold text-slate-100">سجل التحليلات</h2>
+        <div className="mt-3 space-y-2">
+          {history.length === 0 ? (
+            <p className="text-sm text-slate-400">لا يوجد سجل بعد.</p>
+          ) : (
+            history.map((row) => (
+              <div key={row.id} className="rounded-xl border border-slate-700 bg-slate-950/70 p-3">
+                <p className="text-xs text-slate-300">{row.step} - {new Date(row.created_at).toLocaleString("ar-SA")}</p>
+                <p className="mt-1 text-sm text-slate-200 line-clamp-2">{row.prompt || "-"}</p>
+                <p className="mt-1 text-xs text-sky-300">Quality: {row.response?.qualityAssessment?.ideaQualityScore ?? "-"}</p>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
     </div>
   )
 }
