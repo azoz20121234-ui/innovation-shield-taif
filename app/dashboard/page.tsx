@@ -1,60 +1,56 @@
 export default function Dashboard() {
   return (
-    <div className="p-8 text-white space-y-8">
+    <div className="space-y-10">
 
-      <h1 className="text-3xl font-bold">لوحة القيادة التنفيذية</h1>
+      <h1 className="text-3xl font-semibold tracking-tight">
+        لوحة المؤشرات التنفيذية
+      </h1>
 
-      {/* KPI CARDS */}
+      {/* KPI Section */}
       <div className="grid grid-cols-4 gap-6">
-        <Card title="المبادرات النشطة" value="24" color="bg-blue-600" />
-        <Card title="قيد التحكيم" value="8" color="bg-yellow-500" />
-        <Card title="المعتمدة" value="12" color="bg-green-600" />
-        <Card title="المخاطر المرتفعة" value="3" color="bg-red-600" />
+
+        <KPI title="إجمالي المبادرات" value="24" />
+
+        <KPI title="قيد المراجعة" value="5" accent="warning" />
+
+        <KPI title="معتمدة" value="12" accent="success" />
+
+        <KPI title="متعثرة" value="2" accent="danger" />
+
       </div>
 
-      {/* FUNNEL */}
-      <div className="bg-white/5 p-6 rounded-xl">
-        <h2 className="mb-4 text-xl font-semibold">مسار الابتكار</h2>
-
-        <div className="flex justify-between text-center">
-          <Stage name="فكرة" count="40" />
-          <Stage name="مراجعة" count="22" />
-          <Stage name="تحكيم" count="15" />
-          <Stage name="تنفيذ" count="9" />
-          <Stage name="إغلاق" count="4" />
+      {/* Chart Placeholder */}
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-8 backdrop-blur-xl">
+        <h2 className="mb-6 text-lg font-medium">تحليل الأداء الزمني</h2>
+        <div className="h-64 flex items-center justify-center text-white/40">
+          [ Chart Engine Coming Soon ]
         </div>
       </div>
 
-      {/* ACTIVITY */}
-      <div className="bg-white/5 p-6 rounded-xl">
-        <h2 className="mb-4 text-xl font-semibold">آخر الأنشطة</h2>
+    </div>
+  )
+}
 
-        <ul className="space-y-3 text-gray-300">
-          <li>تم اعتماد مبادرة التحول الرقمي</li>
-          <li>إضافة تعليق من لجنة التحكيم</li>
-          <li>رفع نموذج أولي جديد</li>
-          <li>تحديث حالة مبادرة الصحة الذكية</li>
-        </ul>
+function KPI({ title, value, accent }: any) {
+
+  const colors: any = {
+    success: "text-[#00C48C]",
+    warning: "text-[#F5A623]",
+    danger: "text-[#FF4D4F]",
+    default: "text-[#2EC4FF]"
+  }
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl hover:bg-white/10 transition">
+
+      <div className="text-sm text-white/60 mb-3">
+        {title}
       </div>
 
-    </div>
-  )
-}
+      <div className={`text-3xl font-semibold ${colors[accent] || colors.default}`}>
+        {value}
+      </div>
 
-function Card({ title, value, color }: any) {
-  return (
-    <div className={`${color} p-6 rounded-xl shadow-lg`}>
-      <p className="text-sm opacity-80">{title}</p>
-      <h3 className="text-2xl font-bold mt-2">{value}</h3>
-    </div>
-  )
-}
-
-function Stage({ name, count }: any) {
-  return (
-    <div>
-      <div className="text-2xl font-bold">{count}</div>
-      <div className="text-sm text-gray-400">{name}</div>
     </div>
   )
 }
