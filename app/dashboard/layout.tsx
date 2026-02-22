@@ -1,28 +1,30 @@
-'use client';
+"use client"
 
-import Link from 'next/link';
-import { ReactNode } from 'react';
+import Link from "next/link"
+import { ReactNode } from "react"
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <div style={styles.wrapper}>
-      
+
       {/* Sidebar */}
       <aside style={styles.sidebar}>
-        <h2 style={styles.logo}>درع الابتكار 👑</h2>
+        <div style={styles.logo}>🛡 درع الابتكار</div>
 
         <nav style={styles.nav}>
-          <Link href="/dashboard">الرئيسية</Link>
-          <Link href="/dashboard/ideas">الأفكار</Link>
-          <Link href="/dashboard/challenges">التحديات</Link>
-          <Link href="/dashboard/profile">الملف الشخصي</Link>
+          <NavItem href="/dashboard" label="الرئيسية" />
+          <NavItem href="/dashboard/ideas" label="الأفكار" />
+          <NavItem href="#" label="التحكيم" />
+          <NavItem href="#" label="المؤشرات" />
+          <NavItem href="#" label="السياسات" />
         </nav>
       </aside>
 
-      {/* Main Area */}
+      {/* Main */}
       <div style={styles.main}>
-        <header style={styles.header}>
-          لوحة التحكم
+        <header style={styles.topbar}>
+          <div>لوحة التحكم التنفيذية</div>
+          <div style={styles.badge}>Innovation System v1.0</div>
         </header>
 
         <div style={styles.content}>
@@ -30,51 +32,71 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         </div>
       </div>
     </div>
-  );
+  )
+}
+
+function NavItem({ href, label }: { href: string; label: string }) {
+  return (
+    <Link href={href} style={styles.navItem}>
+      {label}
+    </Link>
+  )
 }
 
 const styles: any = {
   wrapper: {
-    display: 'flex',
-    minHeight: '100vh',
-    background: 'linear-gradient(135deg,#0f2027,#203a43,#2c5364)',
-    color: 'white',
-    fontFamily: 'system-ui',
+    display: "flex",
+    minHeight: "100vh",
+    direction: "rtl",
+    fontFamily: "system-ui, sans-serif",
+    background: "radial-gradient(circle at top left, #0f2027, #203a43, #2c5364)",
+    color: "white"
   },
-
   sidebar: {
-    width: '260px',
-    padding: '30px 20px',
-    background: 'rgba(0,0,0,0.3)',
-    backdropFilter: 'blur(20px)',
-    borderRight: '1px solid rgba(255,255,255,0.1)',
+    width: "260px",
+    background: "rgba(0,0,0,0.3)",
+    backdropFilter: "blur(20px)",
+    padding: "30px 20px",
+    borderLeft: "1px solid rgba(255,255,255,0.1)"
   },
-
   logo: {
-    marginBottom: '40px',
+    fontSize: "20px",
+    fontWeight: "bold",
+    marginBottom: "40px"
   },
-
   nav: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '15px',
+    display: "flex",
+    flexDirection: "column",
+    gap: "15px"
   },
-
+  navItem: {
+    padding: "12px 16px",
+    borderRadius: "12px",
+    textDecoration: "none",
+    color: "white",
+    background: "rgba(255,255,255,0.05)",
+    transition: "0.2s ease"
+  },
   main: {
     flex: 1,
-    padding: '30px',
+    display: "flex",
+    flexDirection: "column"
   },
-
-  header: {
-    fontSize: '22px',
-    marginBottom: '30px',
-    opacity: 0.8,
+  topbar: {
+    height: "70px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "0 40px",
+    borderBottom: "1px solid rgba(255,255,255,0.1)",
+    background: "rgba(0,0,0,0.2)",
+    backdropFilter: "blur(20px)"
   },
-
+  badge: {
+    fontSize: "12px",
+    opacity: 0.6
+  },
   content: {
-    background: 'rgba(255,255,255,0.05)',
-    padding: '30px',
-    borderRadius: '20px',
-    backdropFilter: 'blur(20px)',
-  },
-};
+    padding: "40px"
+  }
+}
