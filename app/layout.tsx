@@ -1,9 +1,5 @@
 import "./globals.css"
-
-export const metadata = {
-  title: "درع الابتكار",
-  description: "منصة إدارة الابتكار المؤسسي",
-}
+import { InnovationProvider } from "@/context/InnovationContext"
 
 export default function RootLayout({
   children,
@@ -12,8 +8,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ar" dir="rtl">
-      <body className="min-h-screen bg-slate-950 text-white">
-        {children}
+      <body>
+        <InnovationProvider>
+          {children}
+        </InnovationProvider>
       </body>
     </html>
   )
