@@ -1,23 +1,29 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { supabase } from "@/lib/supabaseClient"
+import { supabase } from "../../lib/supabaseClient"
 import Link from "next/link"
 
 export default function ChallengesPage() {
   const [challenges, setChallenges] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetchChallenges()
   }, [])
 
   async function fetchChallenges() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("challenges")
       .select("*")
       .order("created_at", { ascending: false })
 
+    if (error) {
+      console.error("Supabase Error:", error)
+    }
+
     setChallenges(data || [])
+    setLoading(false)
   }
 
   return (
@@ -32,12 +38,21 @@ export default function ChallengesPage() {
         </Link>
       </div>
 
-      <div className="space-y-4">
+      {loading && <p>جاري التحميل...</p>}
+
+      {!loading && challenges.length === 0 && (
+        <p className="opacity-70">لا يوجد تحديات حالياً</p>
+      )}
+
+      <div className="space-y-4 mt-4">
         {challenges.map((challenge) => (
-          <div key={challenge.id} className="bg-white/10 p-4 rounded">
+          <div
+            key={challenge.id}
+            className="bg-white/10 backdrop-blur p-6 rounded-xl border border-white/10"
+          >
             <h2 className="text-xl font-semibold">{challenge.title}</h2>
             <p className="text-sm opacity-70">{challenge.department}</p>
-            <p className="mt-2">{challenge.description}</p>
+            <p className="mt-2 opacity-90">{challenge.description}</p>
           </div>
         ))}
       </div>
