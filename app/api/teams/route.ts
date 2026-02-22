@@ -13,7 +13,7 @@ type TeamRow = {
   achieved_impact: string | null
   created_at: string
   challenges?: { title: string | null } | Array<{ title: string | null }> | null
-  team_members?: Array<{ id: string; member_name: string; role: string | null }>
+  team_members?: Array<{ id: string; member_name?: string; name?: string; role: string | null }>
 }
 
 type IdeaRow = {
@@ -48,19 +48,36 @@ export async function GET(req: Request) {
   const url = new URL(req.url)
   const challengeId = url.searchParams.get("challengeId")
 
-  let query = supabaseAdmin
-    .from("teams")
-    .select(
-      "id,name,description,objective,challenge_id,progress,expected_impact,achieved_impact,created_at,challenges(title),team_members(id,member_name,role)"
-    )
-    .order("created_at", { ascending: false })
+  const buildQuery = (withMemberName: boolean) => {
+    let query = supabaseAdmin
+      .from("teams")
+      .select(
+        withMemberName
+          ? "id,name,description,objective,challenge_id,progress,expected_impact,achieved_impact,created_at,challenges(title),team_members(id,member_name,role)"
+          : "id,name,description,objective,challenge_id,progress,expected_impact,achieved_impact,created_at,challenges(title),team_members(id,name,role)"
+      )
+      .order("created_at", { ascending: false })
 
-  if (challengeId) query = query.eq("challenge_id", challengeId)
+    if (challengeId) query = query.eq("challenge_id", challengeId)
+    return query
+  }
 
-  const { data: teamsData, error: teamsError } = await query
+  let { data: teamsData, error: teamsError } = await buildQuery(true)
+  if (teamsError && /team_members_\\d+\\.member_name|member_name/i.test(teamsError.message || "")) {
+    const retry = await buildQuery(false)
+    teamsData = retry.data
+    teamsError = retry.error
+  }
+
   if (teamsError) return NextResponse.json({ error: teamsError.message }, { status: 500 })
 
-  const teams = (teamsData || []) as TeamRow[]
+  const teams = ((teamsData || []) as TeamRow[]).map((team) => ({
+    ...team,
+    team_members: (team.team_members || []).map((member) => ({
+      ...member,
+      member_name: member.member_name || member.name || "",
+    })),
+  }))
   const teamIds = teams.map((team) => team.id)
 
   if (teamIds.length === 0) {
