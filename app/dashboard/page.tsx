@@ -112,7 +112,7 @@ export default function DashboardPage() {
           منصة حكومية لتجمع الطائف الصحي
         </p>
         <h1 className="max-w-4xl text-4xl font-semibold leading-tight md:text-5xl">
-          Innovation Shield
+          درع الابتكار
           <br />
           تنظيم رحلة الابتكار المؤسسي بالكامل
         </h1>
