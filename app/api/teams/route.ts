@@ -44,45 +44,69 @@ type TaskRow = {
   owner_name: string | null
 }
 
+type TeamMemberRow = {
+  id: string
+  team_id: string
+  member_name?: string
+  name?: string
+  role: string | null
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url)
   const challengeId = url.searchParams.get("challengeId")
 
-  const buildQuery = (withMemberName: boolean) => {
+  const buildQuery = () => {
     let query = supabaseAdmin
       .from("teams")
-      .select(
-        withMemberName
-          ? "id,name,description,objective,challenge_id,progress,expected_impact,achieved_impact,created_at,challenges(title),team_members(id,member_name,role)"
-          : "id,name,description,objective,challenge_id,progress,expected_impact,achieved_impact,created_at,challenges(title),team_members(id,name,role)"
-      )
+      .select("id,name,description,objective,challenge_id,progress,expected_impact,achieved_impact,created_at,challenges(title)")
       .order("created_at", { ascending: false })
 
     if (challengeId) query = query.eq("challenge_id", challengeId)
     return query
   }
 
-  let { data: teamsData, error: teamsError } = await buildQuery(true)
-  if (teamsError && /team_members_\\d+\\.member_name|member_name/i.test(teamsError.message || "")) {
-    const retry = await buildQuery(false)
-    teamsData = retry.data
-    teamsError = retry.error
-  }
-
+  const { data: teamsData, error: teamsError } = await buildQuery()
   if (teamsError) return NextResponse.json({ error: teamsError.message }, { status: 500 })
 
-  const teams = ((teamsData || []) as TeamRow[]).map((team) => ({
-    ...team,
-    team_members: (team.team_members || []).map((member) => ({
-      ...member,
-      member_name: member.member_name || member.name || "",
-    })),
-  }))
+  const teams = (teamsData || []) as TeamRow[]
   const teamIds = teams.map((team) => team.id)
 
   if (teamIds.length === 0) {
     return NextResponse.json({ data: [] })
   }
+
+  const getMembersWithMemberName = () =>
+    supabaseAdmin
+      .from("team_members")
+      .select("id,team_id,member_name,role")
+      .in("team_id", teamIds)
+
+  const getMembersWithName = () =>
+    supabaseAdmin
+      .from("team_members")
+      .select("id,team_id,name,role")
+      .in("team_id", teamIds)
+
+  const membersWithMemberName = await getMembersWithMemberName()
+  let membersData = membersWithMemberName.data as TeamMemberRow[] | null
+  let membersError = membersWithMemberName.error
+  if (membersError && /member_name/i.test(membersError.message || "")) {
+    const retry = await getMembersWithName()
+    membersData = retry.data as TeamMemberRow[] | null
+    membersError = retry.error
+  }
+  if (membersError) return NextResponse.json({ error: membersError.message }, { status: 500 })
+
+  const membersByTeam = new Map<string, TeamMemberRow[]>()
+  ;((membersData || []) as TeamMemberRow[]).forEach((member) => {
+    const list = membersByTeam.get(member.team_id) || []
+    list.push({
+      ...member,
+      member_name: member.member_name || member.name || "",
+    })
+    membersByTeam.set(member.team_id, list)
+  })
 
   const [ideasRes, tasksRes] = await Promise.all([
     supabaseAdmin
@@ -141,7 +165,8 @@ export async function GET(req: Request) {
   const data = teams.map((team) => {
     const teamIdeas = ideasByTeam.get(team.id) || []
     const teamTasks = tasksByTeam.get(team.id) || []
-    const leader = (team.team_members || []).find(
+    const teamMembers = membersByTeam.get(team.id) || []
+    const leader = teamMembers.find(
       (member) => String(member.role || "").toLowerCase() === "leader"
     )
 
@@ -156,6 +181,7 @@ export async function GET(req: Request) {
     return {
       ...team,
       challenge_title: challengeTitle,
+      team_members: teamMembers,
       leader,
       ideas: teamIdeas,
       projects: projectsForTeam,
@@ -191,12 +217,27 @@ export async function POST(req: Request) {
 
     if (teamError) return NextResponse.json({ error: teamError.message }, { status: 500 })
 
-    const { error: leaderError } = await supabaseAdmin.from("team_members").insert({
-      team_id: team.id,
-      member_id: body.leaderId || null,
-      member_name: body.leaderName,
-      role: "leader",
-    })
+    const insertLeaderWithMemberName = () =>
+      supabaseAdmin.from("team_members").insert({
+        team_id: team.id,
+        member_id: body.leaderId || null,
+        member_name: body.leaderName,
+        role: "leader",
+      })
+
+    const insertLeaderWithName = () =>
+      supabaseAdmin.from("team_members").insert({
+        team_id: team.id,
+        member_id: body.leaderId || null,
+        name: body.leaderName,
+        role: "leader",
+      })
+
+    let { error: leaderError } = await insertLeaderWithMemberName()
+    if (leaderError && /member_name/i.test(leaderError.message || "")) {
+      const retry = await insertLeaderWithName()
+      leaderError = retry.error
+    }
 
     if (leaderError) {
       await supabaseAdmin.from("teams").delete().eq("id", team.id)
