@@ -44,6 +44,7 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [statusFilter, setStatusFilter] = useState("all")
 
   const load = async () => {
     setLoading(true)
@@ -64,6 +65,18 @@ export default function ProjectsPage() {
   useEffect(() => {
     void load()
   }, [])
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      void load()
+    }, 30000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const filteredProjects =
+    statusFilter === "all"
+      ? projects
+      : projects.filter((project) => project.status === statusFilter)
 
   const updateProject = async (projectId: string, status: string, progress: number) => {
     try {
@@ -100,15 +113,32 @@ export default function ProjectsPage() {
 
       {error && <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-4 text-red-200">{error}</div>}
 
+      <section className="rounded-3xl border border-white/20 bg-slate-900/55 p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-slate-300">تصفية الحالة</span>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-xl border border-slate-700 bg-slate-950/70 p-2 text-sm text-slate-100"
+          >
+            <option value="all">كل المشاريع</option>
+            <option value="planned">مخطط</option>
+            <option value="in_progress">قيد التنفيذ</option>
+            <option value="monitoring">قياس أثر</option>
+            <option value="completed">مكتمل</option>
+          </select>
+        </div>
+      </section>
+
       <section className="space-y-4">
         {loading ? (
           <div className="rounded-2xl border border-white/20 bg-slate-900/55 p-4 text-slate-300">جارٍ التحميل...</div>
-        ) : projects.length === 0 ? (
+        ) : filteredProjects.length === 0 ? (
           <div className="rounded-2xl border border-white/20 bg-slate-900/55 p-4 text-slate-300">
             لا توجد مشاريع تنفيذ حتى الآن. اعتمد فكرة من صفحة التحكيم.
           </div>
         ) : (
-          projects.map((project) => (
+          filteredProjects.map((project) => (
             <div key={project.id} className="rounded-3xl border border-white/20 bg-slate-900/55 p-6">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>

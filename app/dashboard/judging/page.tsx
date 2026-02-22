@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 type Idea = {
   id: string
@@ -54,6 +54,7 @@ export default function JudgingPage() {
       const filtered = (json.data || []).filter((idea: Idea) =>
         ["prototype_ready", "ai_judged", "human_judged"].includes(idea.state)
       )
+
       setIdeas(filtered)
       if (!selectedIdeaId && filtered[0]?.id) setSelectedIdeaId(filtered[0].id)
     } catch (err) {
@@ -91,6 +92,60 @@ export default function JudgingPage() {
       void loadSummary(selectedIdeaId)
     }
   }, [selectedIdeaId])
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      void loadIdeas()
+      if (selectedIdeaId) {
+        void loadSummary(selectedIdeaId)
+      }
+    }, 30000)
+
+    return () => clearInterval(timer)
+  }, [loadIdeas, selectedIdeaId])
+
+  const selectedIdea = useMemo(() => ideas.find((idea) => idea.id === selectedIdeaId), [ideas, selectedIdeaId])
+
+  const localWeightedScore = useMemo(() => {
+    if (!summary) return 0
+    const totalWeight = summary.criteria.reduce((sum, item) => sum + Number(item.weight), 0)
+    if (!totalWeight) return 0
+
+    const weighted = summary.criteria.reduce((sum, item) => {
+      return sum + Number(scores[item.id] || 0) * Number(item.weight)
+    }, 0)
+
+    return Math.round((weighted / totalWeight) * 100) / 100
+  }, [summary, scores])
+
+  const fillTemplate = (target: number) => {
+    if (!summary) return
+    const next: Record<string, number> = {}
+    summary.criteria.forEach((item) => {
+      next[item.id] = target
+    })
+    setScores(next)
+  }
+
+  const exportJudgingSnapshot = () => {
+    if (!summary || !selectedIdea) return
+
+    const payload = {
+      idea: selectedIdea,
+      averageScore: summary.averageScore,
+      currentDraftScore: localWeightedScore,
+      evaluatorScores: summary.evaluatorScores,
+      exportedAt: new Date().toISOString(),
+    }
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `judging-${selectedIdea.id}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   const submitEvaluation = async (role: "ai" | "human") => {
     if (!selectedIdeaId || !summary) return
@@ -157,8 +212,6 @@ export default function JudgingPage() {
     }
   }
 
-  const selectedIdea = ideas.find((idea) => idea.id === selectedIdeaId)
-
   return (
     <div className="space-y-6" dir="rtl">
       <section className="rounded-3xl border border-white/20 bg-slate-900/55 p-6">
@@ -192,7 +245,30 @@ export default function JudgingPage() {
       {selectedIdea && summary && (
         <>
           <section className="rounded-3xl border border-white/20 bg-slate-900/55 p-6">
-            <h2 className="text-xl font-semibold text-slate-100">معايير التقييم وأوزانها</h2>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-xl font-semibold text-slate-100">معايير التقييم وأوزانها</h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => fillTemplate(60)}
+                  className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-xs text-slate-200"
+                >
+                  تعبئة 60
+                </button>
+                <button
+                  onClick={() => fillTemplate(80)}
+                  className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-xs text-slate-200"
+                >
+                  تعبئة 80
+                </button>
+                <button
+                  onClick={exportJudgingSnapshot}
+                  className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-xs text-slate-200"
+                >
+                  تصدير Snapshot
+                </button>
+              </div>
+            </div>
+
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               {summary.criteria.map((criterion) => (
                 <div key={criterion.id} className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
@@ -213,6 +289,10 @@ export default function JudgingPage() {
                   />
                 </div>
               ))}
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-sky-500/30 bg-sky-500/10 p-3 text-xs text-sky-200">
+              الدرجة المرجحة الحالية: {localWeightedScore}
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
@@ -246,13 +326,16 @@ export default function JudgingPage() {
               {summary.evaluatorScores.length === 0 ? (
                 <p className="text-sm text-slate-400">لا يوجد تقييمات بعد.</p>
               ) : (
-                summary.evaluatorScores.map((entry, idx) => (
-                  <div key={`${entry.evaluator}-${idx}`} className="rounded-2xl border border-slate-700 bg-slate-900/60 p-3">
-                    <p className="text-sm text-slate-200">
-                      {entry.evaluator} ({entry.role}) - {entry.weightedScore}
-                    </p>
-                  </div>
-                ))
+                summary.evaluatorScores
+                  .slice()
+                  .sort((a, b) => b.weightedScore - a.weightedScore)
+                  .map((entry, idx) => (
+                    <div key={`${entry.evaluator}-${idx}`} className="rounded-2xl border border-slate-700 bg-slate-900/60 p-3">
+                      <p className="text-sm text-slate-200">
+                        {entry.evaluator} ({entry.role}) - {entry.weightedScore}
+                      </p>
+                    </div>
+                  ))
               )}
             </div>
             <div className="mt-4 rounded-2xl border border-sky-500/30 bg-sky-500/10 p-4">

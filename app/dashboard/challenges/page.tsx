@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 type Challenge = {
   id: string
@@ -18,12 +18,20 @@ type Idea = {
   challenge_id: string | null
 }
 
+const statusLabels: Record<string, string> = {
+  open: "مفتوح",
+  in_review: "قيد المراجعة",
+  closed: "مغلق",
+}
+
 export default function ChallengesPage() {
   const [challenges, setChallenges] = useState<Challenge[]>([])
   const [ideas, setIdeas] = useState<Idea[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [query, setQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
 
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -31,12 +39,13 @@ export default function ChallengesPage() {
   const [successCriteria, setSuccessCriteria] = useState("")
   const [impactMetric, setImpactMetric] = useState("")
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     setError(null)
 
     try {
-      const [chRes, ideasRes] = await Promise.all([fetch("/api/challenges"), fetch("/api/ideas")])
+      const statusQuery = statusFilter !== "all" ? `?status=${statusFilter}` : ""
+      const [chRes, ideasRes] = await Promise.all([fetch(`/api/challenges${statusQuery}`), fetch("/api/ideas")])
       const chJson = await chRes.json()
       const ideasJson = await ideasRes.json()
 
@@ -50,11 +59,18 @@ export default function ChallengesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [statusFilter])
 
   useEffect(() => {
     void load()
-  }, [])
+  }, [load])
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      void load()
+    }, 30000)
+    return () => clearInterval(timer)
+  }, [load])
 
   const ideaCountByChallenge = useMemo(() => {
     const m = new Map<string, number>()
@@ -64,6 +80,29 @@ export default function ChallengesPage() {
     })
     return m
   }, [ideas])
+
+  const filteredChallenges = useMemo(() => {
+    const value = query.trim().toLowerCase()
+    if (!value) return challenges
+
+    return challenges.filter((item) => {
+      const titleText = item.title.toLowerCase()
+      const dept = (item.department || "").toLowerCase()
+      const desc = (item.description || "").toLowerCase()
+      return titleText.includes(value) || dept.includes(value) || desc.includes(value)
+    })
+  }, [challenges, query])
+
+  const summary = useMemo(() => {
+    const open = challenges.filter((item) => item.status === "open").length
+    const closed = challenges.filter((item) => item.status === "closed").length
+    return {
+      total: challenges.length,
+      open,
+      closed,
+      linkedIdeas: ideas.filter((i) => i.challenge_id).length,
+    }
+  }, [challenges, ideas])
 
   const createChallenge = async () => {
     if (!title.trim()) return
@@ -101,6 +140,25 @@ export default function ChallengesPage() {
     }
   }
 
+  const updateChallengeStatus = async (item: Challenge, status: "open" | "closed") => {
+    try {
+      const res = await fetch("/api/challenges", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: item.id,
+          status,
+          actorId: "management",
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || "تعذر تحديث حالة التحدي")
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "حدث خطأ")
+    }
+  }
+
   return (
     <div className="space-y-6" dir="rtl">
       <section className="rounded-3xl border border-white/20 bg-slate-900/55 p-6">
@@ -108,6 +166,25 @@ export default function ChallengesPage() {
         <p className="mt-2 text-sm text-slate-300">
           بوابة التحديات مربوطة مباشرة برحلة state machine للأفكار من الطرح حتى التنفيذ.
         </p>
+      </section>
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-slate-700 bg-slate-900/55 p-4">
+          <p className="text-xs text-slate-400">إجمالي التحديات</p>
+          <p className="mt-1 text-2xl font-semibold text-slate-100">{summary.total}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-700 bg-slate-900/55 p-4">
+          <p className="text-xs text-slate-400">التحديات المفتوحة</p>
+          <p className="mt-1 text-2xl font-semibold text-emerald-300">{summary.open}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-700 bg-slate-900/55 p-4">
+          <p className="text-xs text-slate-400">التحديات المغلقة</p>
+          <p className="mt-1 text-2xl font-semibold text-amber-300">{summary.closed}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-700 bg-slate-900/55 p-4">
+          <p className="text-xs text-slate-400">أفكار مرتبطة</p>
+          <p className="mt-1 text-2xl font-semibold text-sky-300">{summary.linkedIdeas}</p>
+        </div>
       </section>
 
       <section className="rounded-3xl border border-white/20 bg-slate-900/55 p-6">
@@ -158,13 +235,30 @@ export default function ChallengesPage() {
       {error && <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-4 text-red-200">{error}</div>}
 
       <section className="rounded-3xl border border-white/20 bg-slate-900/55 p-6">
-        <h2 className="mb-4 text-xl font-semibold text-slate-100">التحديات الحالية</h2>
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <h2 className="text-xl font-semibold text-slate-100">التحديات الحالية</h2>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="بحث بالعنوان/الوصف/الإدارة"
+            className="min-w-56 flex-1 rounded-xl border border-slate-700 bg-slate-950/70 p-2 text-sm text-slate-100"
+          />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-xl border border-slate-700 bg-slate-950/70 p-2 text-sm text-slate-100"
+          >
+            <option value="all">كل الحالات</option>
+            <option value="open">مفتوح</option>
+            <option value="closed">مغلق</option>
+          </select>
+        </div>
 
         {loading ? (
           <p className="text-slate-300">جارٍ التحميل...</p>
         ) : (
           <div className="grid gap-4 lg:grid-cols-2">
-            {challenges.map((item) => (
+            {filteredChallenges.map((item) => (
               <div key={item.id} className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <h3 className="text-lg font-semibold text-slate-100">{item.title}</h3>
@@ -172,10 +266,29 @@ export default function ChallengesPage() {
                     {ideaCountByChallenge.get(item.id) || 0} فكرة
                   </span>
                 </div>
+
                 <p className="text-sm text-slate-300">{item.description || "بدون وصف"}</p>
                 <p className="mt-2 text-xs text-slate-400">الإدارة: {item.department || "غير محدد"}</p>
                 <p className="mt-1 text-xs text-slate-400">معيار النجاح: {item.success_criteria || "غير محدد"}</p>
                 <p className="mt-1 text-xs text-slate-400">مؤشر الأثر: {item.impact_metric || "غير محدد"}</p>
+                <p className="mt-1 text-xs text-slate-400">الحالة: {statusLabels[item.status] || item.status}</p>
+
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={() => updateChallengeStatus(item, "open")}
+                    disabled={item.status === "open"}
+                    className="rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-3 py-1.5 text-xs text-emerald-200 disabled:opacity-50"
+                  >
+                    فتح
+                  </button>
+                  <button
+                    onClick={() => updateChallengeStatus(item, "closed")}
+                    disabled={item.status === "closed"}
+                    className="rounded-xl border border-amber-500/30 bg-amber-500/15 px-3 py-1.5 text-xs text-amber-200 disabled:opacity-50"
+                  >
+                    إغلاق
+                  </button>
+                </div>
               </div>
             ))}
           </div>

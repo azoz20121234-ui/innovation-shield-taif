@@ -2,21 +2,26 @@ import { NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/server/supabaseAdmin"
 import { logAudit } from "@/lib/workflow/audit"
 
+type TaskStatus = "todo" | "inprogress" | "done"
+
 export async function GET(req: Request) {
   const url = new URL(req.url)
+  const ideaId = url.searchParams.get("ideaId")
+  const projectId = url.searchParams.get("projectId")
   const status = url.searchParams.get("status")
-  const department = url.searchParams.get("department")
 
   let query = supabaseAdmin
-    .from("challenges")
-    .select("*")
+    .from("tasks")
+    .select("id,title,description,owner_name,status,due_date,idea_id,project_id,created_at,updated_at")
     .order("created_at", { ascending: false })
 
+  if (ideaId) query = query.eq("idea_id", ideaId)
+  if (projectId) query = query.eq("project_id", projectId)
   if (status) query = query.eq("status", status)
-  if (department) query = query.eq("department", department)
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
   return NextResponse.json({ data: data || [] })
 }
 
@@ -25,14 +30,15 @@ export async function POST(req: Request) {
     const body = await req.json()
 
     const { data, error } = await supabaseAdmin
-      .from("challenges")
+      .from("tasks")
       .insert({
         title: body.title,
         description: body.description || null,
-        department: body.department || null,
-        success_criteria: body.successCriteria || null,
-        impact_metric: body.impactMetric || null,
-        status: "open",
+        owner_name: body.ownerName || null,
+        due_date: body.dueDate || null,
+        status: (body.status as TaskStatus) || "todo",
+        idea_id: body.ideaId || null,
+        project_id: body.projectId || null,
       })
       .select("*")
       .single()
@@ -41,23 +47,28 @@ export async function POST(req: Request) {
 
     await logAudit({
       userId: body.actorId || "system",
-      action: "CHALLENGE_CREATED",
-      entity: "challenge",
+      action: "TASK_CREATED",
+      entity: "task",
       entityId: data.id,
-      metadata: { title: data.title },
+      metadata: {
+        title: data.title,
+        ideaId: data.idea_id,
+        projectId: data.project_id,
+      },
     })
 
     return NextResponse.json({ data })
   } catch {
-    return NextResponse.json({ error: "Failed to create challenge" }, { status: 500 })
+    return NextResponse.json({ error: "Failed to create task" }, { status: 500 })
   }
 }
 
 export async function PATCH(req: Request) {
   try {
     const body = await req.json()
+
     if (!body.id) {
-      return NextResponse.json({ error: "id is required" }, { status: 400 })
+      return NextResponse.json({ error: "Task id is required" }, { status: 400 })
     }
 
     const payload: Record<string, unknown> = {
@@ -66,13 +77,12 @@ export async function PATCH(req: Request) {
 
     if (body.title !== undefined) payload.title = body.title
     if (body.description !== undefined) payload.description = body.description
-    if (body.department !== undefined) payload.department = body.department
-    if (body.successCriteria !== undefined) payload.success_criteria = body.successCriteria
-    if (body.impactMetric !== undefined) payload.impact_metric = body.impactMetric
+    if (body.ownerName !== undefined) payload.owner_name = body.ownerName
+    if (body.dueDate !== undefined) payload.due_date = body.dueDate
     if (body.status !== undefined) payload.status = body.status
 
     const { data, error } = await supabaseAdmin
-      .from("challenges")
+      .from("tasks")
       .update(payload)
       .eq("id", body.id)
       .select("*")
@@ -82,17 +92,18 @@ export async function PATCH(req: Request) {
 
     await logAudit({
       userId: body.actorId || "system",
-      action: "CHALLENGE_UPDATED",
-      entity: "challenge",
+      action: "TASK_UPDATED",
+      entity: "task",
       entityId: body.id,
       metadata: {
-        status: data.status,
-        title: data.title,
+        status: body.status,
+        title: body.title,
       },
     })
 
     return NextResponse.json({ data })
   } catch {
-    return NextResponse.json({ error: "Failed to update challenge" }, { status: 500 })
+    return NextResponse.json({ error: "Failed to update task" }, { status: 500 })
   }
 }
+

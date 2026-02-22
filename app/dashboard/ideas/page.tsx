@@ -40,6 +40,8 @@ export default function IdeasPage() {
   const [saving, setSaving] = useState(false)
   const [assistantLoading, setAssistantLoading] = useState<string | null>(null)
   const [assistantOutput, setAssistantOutput] = useState<Record<string, string>>({})
+  const [query, setQuery] = useState("")
+  const [stateFilter, setStateFilter] = useState("all")
 
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -74,11 +76,45 @@ export default function IdeasPage() {
     void load()
   }, [])
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      void load()
+    }, 30000)
+    return () => clearInterval(timer)
+  }, [])
+
   const challengeName = useMemo(() => {
     const m = new Map<string, string>()
     challenges.forEach((c) => m.set(c.id, c.title))
     return m
   }, [challenges])
+
+  const filteredIdeas = useMemo(() => {
+    const value = query.trim().toLowerCase()
+
+    return ideas.filter((idea) => {
+      if (stateFilter !== "all" && idea.state !== stateFilter) return false
+
+      if (!value) return true
+      const haystack = [
+        idea.title,
+        idea.description || "",
+        idea.challenge_id ? challengeName.get(idea.challenge_id) || "" : "",
+      ]
+        .join(" ")
+        .toLowerCase()
+      return haystack.includes(value)
+    })
+  }, [ideas, query, stateFilter, challengeName])
+
+  const summary = useMemo(() => {
+    const total = ideas.length
+    const execution = ideas.filter((idea) => ["approved_for_execution", "execution_in_progress", "impact_tracking", "protected_published"].includes(idea.state)).length
+    const rejected = ideas.filter((idea) => idea.state === "rejected").length
+    const judged = ideas.filter((idea) => idea.state === "human_judged").length
+
+    return { total, execution, rejected, judged }
+  }, [ideas])
 
   const createIdea = async () => {
     if (!title.trim()) return
@@ -173,6 +209,25 @@ export default function IdeasPage() {
         </p>
       </section>
 
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-slate-700 bg-slate-900/55 p-4">
+          <p className="text-xs text-slate-400">إجمالي الأفكار</p>
+          <p className="mt-1 text-2xl font-semibold text-slate-100">{summary.total}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-700 bg-slate-900/55 p-4">
+          <p className="text-xs text-slate-400">وصلت للتحكيم البشري</p>
+          <p className="mt-1 text-2xl font-semibold text-violet-300">{summary.judged}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-700 bg-slate-900/55 p-4">
+          <p className="text-xs text-slate-400">جاهزة/تحت التنفيذ</p>
+          <p className="mt-1 text-2xl font-semibold text-emerald-300">{summary.execution}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-700 bg-slate-900/55 p-4">
+          <p className="text-xs text-slate-400">مرفوضة</p>
+          <p className="mt-1 text-2xl font-semibold text-amber-300">{summary.rejected}</p>
+        </div>
+      </section>
+
       <section className="rounded-3xl border border-white/20 bg-slate-900/55 p-6">
         <h2 className="text-xl font-semibold text-slate-100">إضافة فكرة</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -215,6 +270,29 @@ export default function IdeasPage() {
 
       {error && <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-4 text-red-200">{error}</div>}
 
+      <section className="rounded-3xl border border-white/20 bg-slate-900/55 p-4">
+        <div className="grid gap-2 md:grid-cols-2">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="بحث في الأفكار"
+            className="rounded-xl border border-slate-700 bg-slate-950/70 p-2 text-sm text-slate-100"
+          />
+          <select
+            value={stateFilter}
+            onChange={(e) => setStateFilter(e.target.value)}
+            className="rounded-xl border border-slate-700 bg-slate-950/70 p-2 text-sm text-slate-100"
+          >
+            <option value="all">كل المراحل</option>
+            {Object.entries(stateLabels).map(([stateKey, label]) => (
+              <option key={stateKey} value={stateKey}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </section>
+
       <section className="rounded-3xl border border-white/20 bg-slate-900/55 p-6">
         <h2 className="mb-4 text-xl font-semibold text-slate-100">الأفكار الحالية</h2>
 
@@ -222,7 +300,7 @@ export default function IdeasPage() {
           <p className="text-slate-300">جارٍ التحميل...</p>
         ) : (
           <div className="space-y-3">
-            {ideas.map((idea) => {
+            {filteredIdeas.map((idea) => {
               const suggested = getNextSuggestedState(idea.state)
               const transitions = stateTransitions[idea.state as keyof typeof stateTransitions] || []
 
