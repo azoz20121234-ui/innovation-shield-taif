@@ -2,23 +2,28 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import Link from 'next/link';
 
 export default function IdeasPage() {
   const [ideas, setIdeas] = useState<any[]>([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getUser();
+    initialize();
   }, []);
 
-  async function getUser() {
+  async function initialize() {
     const { data } = await supabase.auth.getUser();
+
     if (data.user) {
       setUserId(data.user.id);
       fetchIdeas(data.user.id);
     }
+
+    setLoading(false);
   }
 
   async function fetchIdeas(uid: string) {
@@ -32,7 +37,7 @@ export default function IdeasPage() {
   }
 
   async function addIdea() {
-    if (!userId) return;
+    if (!userId || !title) return;
 
     await supabase.from('ideas').insert({
       title,
@@ -46,11 +51,18 @@ export default function IdeasPage() {
     fetchIdeas(userId);
   }
 
+  if (loading)
+    return (
+      <div style={{ padding: 40, color: 'white' }}>
+        جارٍ التحميل...
+      </div>
+    );
+
   return (
     <div style={containerStyle}>
       <h1 style={titleStyle}>🚀 أفكاري الابتكارية</h1>
 
-      {/* Add Idea */}
+      {/* Add Idea Section */}
       <div style={formStyle}>
         <input
           placeholder="عنوان الفكرة"
@@ -76,13 +88,20 @@ export default function IdeasPage() {
         {ideas.map((idea) => (
           <div key={idea.id} style={cardStyle}>
             <div style={cardHeader}>
-              <h3>{idea.title}</h3>
+              <Link href={`/dashboard/ideas/${idea.id}`}>
+                <h3 style={{ cursor: 'pointer' }}>
+                  {idea.title}
+                </h3>
+              </Link>
+
               <span style={statusStyle(idea.status)}>
                 {idea.status}
               </span>
             </div>
 
-            <p style={{ opacity: 0.8 }}>{idea.description}</p>
+            <p style={{ opacity: 0.8 }}>
+              {idea.description}
+            </p>
           </div>
         ))}
       </div>
