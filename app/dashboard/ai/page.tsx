@@ -1,7 +1,34 @@
 "use client"
 
 import { useState } from "react"
-import { AlertTriangle, Bot, CopyCheck, Files, Gauge, ShieldCheck, Sparkles } from "lucide-react"
+import { AlertTriangle, Bot, CopyCheck, Files, Gauge, ShieldCheck, Sparkles, Users } from "lucide-react"
+
+type Block = {
+  existing?: string[]
+  missing?: string[]
+  beforeJudging?: string[]
+}
+
+type PrototypeAssistant = {
+  userFlow?: string[]
+  journeyMap?: string[]
+  useScenarios?: string[]
+  apiBlueprint?: string[]
+}
+
+type AdvancedImpact = {
+  financialSavings?: string
+  qualityImprovement?: string
+  patientExperienceImprovement?: string
+  similarProjectsComparison?: string
+}
+
+type TeamAssistant = {
+  taskDistribution?: string[]
+  rolesSuggestion?: string[]
+  readyUpdates?: string[]
+  operationalRisks?: string[]
+}
 
 type AnalysisResult = {
   mode?: "live" | "fallback"
@@ -12,6 +39,10 @@ type AnalysisResult = {
   riskScan: string[]
   duplicationScan: string[]
   ipGuidance: string[]
+  gapAnalysis?: Block
+  prototypeAssistant?: PrototypeAssistant
+  advancedImpact?: AdvancedImpact
+  teamAssistant?: TeamAssistant
 }
 
 const aiRoleCards = [
@@ -21,31 +52,50 @@ const aiRoleCards = [
     icon: Bot,
   },
   {
-    title: "محلل جدوى تلقائي",
-    description: "تقييم الأثر والجدوى والتكرار.",
+    title: "تحليل الفجوات",
+    description: "تحديد الموجود والناقص وما يلزم قبل التحكيم.",
     icon: Gauge,
   },
   {
-    title: "مولد نماذج أولية",
-    description: "إنتاج Wireframes ونماذج استخدام قابلة للتعديل.",
+    title: "مساعد النموذج الأولي",
+    description: "User Flow + Journey Map + سيناريوهات + API Blueprint.",
     icon: Sparkles,
   },
   {
-    title: "مُقَيّم مخاطر",
-    description: "كشف مخاطر الخصوصية والتشغيل والتكامل.",
+    title: "تحليل أثر متقدم",
+    description: "وفورات مالية وجودة وتجربة مريض مع مقارنة مشابهة.",
     icon: AlertTriangle,
   },
   {
-    title: "كاشف التكرار",
-    description: "مقارنة الفكرة بقاعدة داخلية وخارجية لتقليل التكرار.",
-    icon: CopyCheck,
+    title: "مساعد الفريق",
+    description: "اقتراح أدوار وتوزيع مهام وتحديثات جاهزة وتحليل مخاطر تشغيلية.",
+    icon: Users,
   },
   {
     title: "توصيف حماية الملكية",
     description: "اقتراح نوع الحماية وتوليد مسودة ملف رفع.",
     icon: ShieldCheck,
   },
+  {
+    title: "كاشف التكرار",
+    description: "مقارنة الفكرة بقاعدة داخلية وخارجية لتقليل التكرار.",
+    icon: CopyCheck,
+  },
 ]
+
+function ListBlock({ title, items }: { title: string; items?: string[] }) {
+  if (!items || items.length === 0) return null
+  return (
+    <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
+      <h3 className="font-semibold text-slate-100">{title}</h3>
+      <ul className="mt-2 space-y-2 text-sm text-slate-300">
+        {items.map((item, idx) => (
+          <li key={`${title}-${idx}`} className="rounded-xl bg-slate-950/70 px-3 py-2">{item}</li>
+        ))}
+      </ul>
+    </div>
+  )
+}
 
 export default function AIPage() {
   const [idea, setIdea] = useState("")
@@ -85,14 +135,13 @@ export default function AIPage() {
   return (
     <div className="space-y-7" dir="rtl">
       <section className="rounded-3xl border border-white/20 bg-slate-900/55 p-6">
-        <h1 className="text-3xl font-semibold text-slate-100">مساعد الابتكار الذكي</h1>
+        <h1 className="text-3xl font-semibold text-slate-100">مساعد الابتكار الذكي (مستشار متكامل)</h1>
         <p className="mt-2 max-w-4xl text-slate-300">
-          محرك ذكاء اصطناعي لمنصة الابتكار في تجمع الطائف الصحي لدعم التحليل، بناء
-          النموذج الأولي، التقييم، وحماية الملكية.
+          تحليل فجوات + مساعد نموذج أولي + تحليل أثر متقدم + مساعد فريق، لدعم المبتكر والفريق والمحكم والإدارة.
         </p>
       </section>
 
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {aiRoleCards.map((item) => {
           const Icon = item.icon
           return (
@@ -110,7 +159,7 @@ export default function AIPage() {
       <section className="rounded-3xl border border-white/20 bg-slate-900/55 p-6">
         <h2 className="text-xl font-semibold text-slate-100">تحليل فكرة الآن</h2>
         <p className="mt-1 text-sm text-slate-300">
-          أدخل الفكرة ليتم توليد الملخص التنفيذي، Pitch، جدوى، مخاطر، كشف تكرار، وتوصيف حماية الملكية.
+          أدخل الفكرة لتوليد تحليل متكامل من الفجوات حتى خطة الفريق والتحكيم.
         </p>
 
         <textarea
@@ -156,41 +205,10 @@ export default function AIPage() {
           </div>
 
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
-              <h3 className="font-semibold text-slate-100">تحليل الجدوى</h3>
-              <ul className="mt-2 space-y-2 text-sm text-slate-300">
-                {result.feasibility.map((item) => (
-                  <li key={item} className="rounded-xl bg-slate-950/70 px-3 py-2">{item}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
-              <h3 className="font-semibold text-slate-100">مخرجات النموذج الأولي</h3>
-              <ul className="mt-2 space-y-2 text-sm text-slate-300">
-                {result.prototypeOutputs.map((item) => (
-                  <li key={item} className="rounded-xl bg-slate-950/70 px-3 py-2">{item}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
-              <h3 className="font-semibold text-slate-100">تقييم المخاطر</h3>
-              <ul className="mt-2 space-y-2 text-sm text-slate-300">
-                {result.riskScan.map((item) => (
-                  <li key={item} className="rounded-xl bg-slate-950/70 px-3 py-2">{item}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
-              <h3 className="font-semibold text-slate-100">كشف التكرار</h3>
-              <ul className="mt-2 space-y-2 text-sm text-slate-300">
-                {result.duplicationScan.map((item) => (
-                  <li key={item} className="rounded-xl bg-slate-950/70 px-3 py-2">{item}</li>
-                ))}
-              </ul>
-            </div>
+            <ListBlock title="تحليل الجدوى" items={result.feasibility} />
+            <ListBlock title="مخرجات النموذج الأولي" items={result.prototypeOutputs} />
+            <ListBlock title="تقييم المخاطر" items={result.riskScan} />
+            <ListBlock title="كشف التكرار" items={result.duplicationScan} />
           </div>
 
           <div className="mt-4 rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
@@ -199,10 +217,41 @@ export default function AIPage() {
               <h3 className="font-semibold">توصيف حماية الملكية</h3>
             </div>
             <ul className="space-y-2 text-sm text-slate-300">
-              {result.ipGuidance.map((item) => (
-                <li key={item} className="rounded-xl bg-slate-950/70 px-3 py-2">{item}</li>
+              {result.ipGuidance.map((item, idx) => (
+                <li key={`ip-${idx}`} className="rounded-xl bg-slate-950/70 px-3 py-2">{item}</li>
               ))}
             </ul>
+          </div>
+
+          <div className="mt-4 grid gap-4 xl:grid-cols-3">
+            <ListBlock title="Gap Analysis - الموجود" items={result.gapAnalysis?.existing} />
+            <ListBlock title="Gap Analysis - الناقص" items={result.gapAnalysis?.missing} />
+            <ListBlock title="Gap Analysis - قبل التحكيم" items={result.gapAnalysis?.beforeJudging} />
+          </div>
+
+          <div className="mt-4 grid gap-4 xl:grid-cols-2">
+            <ListBlock title="Prototype Assistant - User Flow" items={result.prototypeAssistant?.userFlow} />
+            <ListBlock title="Prototype Assistant - Journey Map" items={result.prototypeAssistant?.journeyMap} />
+            <ListBlock title="Prototype Assistant - Use Scenarios" items={result.prototypeAssistant?.useScenarios} />
+            <ListBlock title="Prototype Assistant - API Blueprint" items={result.prototypeAssistant?.apiBlueprint} />
+          </div>
+
+          <div className="mt-4 grid gap-4 xl:grid-cols-2">
+            <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
+              <h3 className="font-semibold text-slate-100">تحليل أثر متقدم</h3>
+              <p className="mt-2 text-sm text-slate-300">وفورات مالية: {result.advancedImpact?.financialSavings || "-"}</p>
+              <p className="mt-2 text-sm text-slate-300">تحسين الجودة: {result.advancedImpact?.qualityImprovement || "-"}</p>
+              <p className="mt-2 text-sm text-slate-300">تحسين تجربة المريض: {result.advancedImpact?.patientExperienceImprovement || "-"}</p>
+              <p className="mt-2 text-sm text-slate-300">مقارنة مشاريع مشابهة: {result.advancedImpact?.similarProjectsComparison || "-"}</p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
+              <h3 className="font-semibold text-slate-100">مساعد الفريق</h3>
+              <ListBlock title="توزيع المهام المقترح" items={result.teamAssistant?.taskDistribution} />
+              <ListBlock title="الأدوار المقترحة" items={result.teamAssistant?.rolesSuggestion} />
+              <ListBlock title="تحديثات جاهزة" items={result.teamAssistant?.readyUpdates} />
+              <ListBlock title="مخاطر تشغيلية" items={result.teamAssistant?.operationalRisks} />
+            </div>
           </div>
         </section>
       )}

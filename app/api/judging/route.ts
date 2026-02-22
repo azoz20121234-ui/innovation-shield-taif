@@ -29,6 +29,14 @@ type EvaluationRow = {
   created_at: string
 }
 
+function recommendationForWeakness(name: string) {
+  if (name.includes("الجدوى")) return "أضف خطة تنفيذ تدريجية وموارد واضحة لكل مرحلة."
+  if (name.includes("الخصوصية") || name.includes("السلامة")) return "نفّذ تقييم خصوصية وسلامة قبل الإطلاق التجريبي."
+  if (name.includes("التوسع")) return "ابدأ بنطاق محدود مع خطة توسع على مرحلتين."
+  if (name.includes("الأثر")) return "عرّف baseline رقمي ومؤشرات أثر شهرية."
+  return `حسّن معيار "${name}" عبر إجراءات تنفيذية وتحقق مبكر.`
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url)
   const ideaId = url.searchParams.get("ideaId")
@@ -39,7 +47,7 @@ export async function GET(req: Request) {
 
   const { data: idea, error: ideaErr } = await supabaseAdmin
     .from("ideas")
-    .select("id,title,state,final_judging_score")
+    .select("id,title,state,latest_ai_score,final_judging_score")
     .eq("id", ideaId)
     .single()
 
@@ -90,6 +98,48 @@ export async function GET(req: Request) {
         100
       : 0
 
+  const notes = (evaluations || [])
+    .filter((row: EvaluationRow) => Boolean(row.comments))
+    .map((row: EvaluationRow) => `${row.evaluator_name}: ${row.comments}`)
+
+  const rowsForFinal = ((evaluations || []) as EvaluationRow[]).filter((row) => row.evaluator_role === "human")
+  const sourceRows = rowsForFinal.length > 0 ? rowsForFinal : ((evaluations || []) as EvaluationRow[])
+
+  const criterionAvg = Array.from(criteriaById.values()).map((criterion) => {
+    const rows = sourceRows.filter((row) => row.criterion_id === criterion.id)
+    const avgScore = rows.length > 0 ? rows.reduce((sum, row) => sum + Number(row.score), 0) / rows.length : 0
+    return {
+      criterion: criterion.criterion,
+      average: Math.round(avgScore * 100) / 100,
+      weight: criterion.weight,
+    }
+  })
+
+  const strengths = criterionAvg
+    .filter((row) => row.average >= 75)
+    .sort((a, b) => b.average - a.average)
+    .slice(0, 3)
+    .map((row) => `${row.criterion} (${row.average})`)
+
+  const weaknesses = criterionAvg
+    .filter((row) => row.average > 0 && row.average < 60)
+    .sort((a, b) => a.average - b.average)
+    .slice(0, 3)
+    .map((row) => `${row.criterion} (${row.average})`)
+
+  const recommendations = (weaknesses.length > 0
+    ? weaknesses.map((item) => recommendationForWeakness(item.split(" (")[0]))
+    : ["واصل تحسين جودة الدليل التشغيلي قبل التنفيذ الكامل.", "وثّق مؤشرات الأثر شهريًا."])
+
+  const finalReport = {
+    averageScore: avg,
+    preJudgingScore: idea.latest_ai_score || null,
+    evaluatorNotes: notes,
+    strengths,
+    weaknesses,
+    recommendations,
+  }
+
   return NextResponse.json({
     data: {
       idea,
@@ -97,6 +147,7 @@ export async function GET(req: Request) {
       evaluations,
       evaluatorScores,
       averageScore: avg,
+      finalReport,
     },
   })
 }
