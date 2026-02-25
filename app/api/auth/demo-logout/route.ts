@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { DEMO_SESSION_COOKIE } from "@/lib/auth/demoAccess"
 
-export async function GET(req: Request) {
+function clearSession(req: Request) {
   const redirectUrl = new URL("/", req.url)
   const response = NextResponse.redirect(redirectUrl)
 
@@ -19,4 +19,12 @@ export async function GET(req: Request) {
   })
 
   return response
+}
+
+export async function GET(req: Request) {
+  return clearSession(req)
+}
+
+export async function POST(req: Request) {
+  return clearSession(req)
 }

@@ -91,12 +91,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
             </div>
 
             <div className="flex items-center gap-3">
-              <Link
-                href="/api/auth/demo-logout"
-                className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-slate-200 hover:bg-white/20"
-              >
-                تبديل الدور
-              </Link>
+              <form action="/api/auth/demo-logout" method="post">
+                <button
+                  type="submit"
+                  className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-slate-200 hover:bg-white/20"
+                >
+                  تبديل الدور
+                </button>
+              </form>
               <div className="rounded-full bg-white/15 p-1.5">
                 <div className="h-8 w-8 rounded-full bg-[linear-gradient(135deg,#0ea5e9,#2563eb)]" />
               </div>
