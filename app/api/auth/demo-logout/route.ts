@@ -3,7 +3,8 @@ import { DEMO_SESSION_COOKIE } from "@/lib/auth/demoAccess"
 
 function clearSession(req: Request) {
   const redirectUrl = new URL("/", req.url)
-  const response = NextResponse.redirect(redirectUrl)
+  // Use 303 so POST logout always lands on GET / and avoids browser POST re-submit.
+  const response = NextResponse.redirect(redirectUrl, { status: 303 })
 
   response.cookies.set({
     name: DEMO_SESSION_COOKIE,
