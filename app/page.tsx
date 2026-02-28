@@ -1,185 +1,161 @@
-"use client"
-
-import { useRouter } from "next/navigation"
-import { useState } from "react"
 import { Noto_Kufi_Arabic } from "next/font/google"
-import { Building2, ShieldCheck, Users2, Rocket, CheckCircle2, TimerReset, Brain, BarChart3 } from "lucide-react"
+import {
+  Activity,
+  Ambulance,
+  AlertTriangle,
+  BarChart3,
+  BrainCircuit,
+  HeartPulse,
+  RadioTower,
+  ShieldAlert,
+  Watch,
+  Waves,
+} from "lucide-react"
 
 const kufi = Noto_Kufi_Arabic({
   subsets: ["arabic"],
-  weight: ["400", "500", "700"],
+  weight: ["400", "500", "700", "800"],
 })
 
-const roleButtons = [
+const flowItems = [
   {
-    key: "innovator",
-    label: "مبتكر",
-    subtitle: "صياغة فكرة وتحسينها بالذكاء الاصطناعي",
-    icon: Building2,
-    className: "from-cyan-500/30 to-sky-400/10 border-cyan-400/40 hover:border-cyan-300",
+    title: "السوار الصحي الذكي (BLE Wristband)",
+    description: "يقوم السوار بقياس نبض القلب وحرارة الجلد والحركة، ثم يرسل البيانات بشكل مجهول الهوية لضمان الخصوصية.",
+    icon: Watch,
   },
   {
-    key: "committee",
-    label: "محكم لجنة",
-    subtitle: "تقييم متعدد المعايير واعتماد محكوم",
-    icon: ShieldCheck,
-    className: "from-indigo-500/30 to-violet-400/10 border-indigo-400/40 hover:border-indigo-300",
+    title: "بوابات الاستقبال (BLE Gateways)",
+    description: "محطات موزعة في المشاعر تستقبل إشارات الأسوار وتنقلها فوراً إلى سحابة المنصة للتحليل اللحظي.",
+    icon: RadioTower,
   },
   {
-    key: "pmo",
-    label: "PMO",
-    subtitle: "متابعة التنفيذ، المخاطر، مؤشرات الإنجاز",
-    icon: Rocket,
-    className: "from-amber-500/30 to-orange-400/10 border-amber-400/40 hover:border-amber-300",
-  },
-  {
-    key: "management",
-    label: "إدارة",
-    subtitle: "لوحة قرار استراتيجية وتتبّع الأثر",
-    icon: Users2,
-    className: "from-emerald-500/30 to-teal-400/10 border-emerald-400/40 hover:border-emerald-300",
+    title: "لوحة القيادة الوطنية والذكاء الاصطناعي",
+    description: "تحليل البيانات لحظياً للتنبؤ بالمخاطر وإصدار تنبيهات فورية بمستويات استجابة متعددة.",
+    icon: BrainCircuit,
   },
 ]
 
-const highlights = [
+const responseLevels = [
   {
-    title: "سير عمل ذكي",
-    description: "إدارة تلقائية لمراحل التقديم، الفرز، التحكيم، والتنفيذ.",
-    icon: Brain,
+    title: "المستوى الأول: الاستجابة الوقائية",
+    badge: "تنبيه أصفر",
+    description: "توجيه تنبيهات مبكرة للحجاج مع توصيات مباشرة مثل شرب السوائل أو الانتقال لمناطق التبريد.",
+    icon: Waves,
+    color: "from-yellow-400/20 to-amber-300/10 border-yellow-400/30",
   },
   {
-    title: "مؤشرات لحظية",
-    description: "لوحات KPI تفاعلية لقياس الإنجاز والأثر ووقت الدورة.",
+    title: "المستوى الثاني: التدخل الطبي العاجل",
+    badge: "تنبيه أحمر",
+    description: "رصد الحالات مرتفعة الخطورة وتوجيه الفرق الطبية الميدانية إلى موقع الحالة للتدخل السريع.",
+    icon: Ambulance,
+    color: "from-rose-500/20 to-red-400/10 border-rose-400/30",
+  },
+  {
+    title: "المستوى الثالث: إدارة الأزمات",
+    badge: "المستوى الوطني",
+    description: "استخدام خرائط المخاطر الحرارية لاتخاذ قرارات تشغيلية مثل إعادة التوجيه أو الإغلاق المرحلي.",
+    icon: ShieldAlert,
+    color: "from-orange-500/20 to-amber-400/10 border-orange-400/35",
+  },
+]
+
+const impactItems = [
+  {
+    title: "خفض الحالات الحرجة",
+    value: "25% - 40%",
+    description: "التدخل الاستباقي يقلل من تفاقم الإجهاد الحراري إلى حالات طبية طارئة.",
+    icon: AlertTriangle,
+  },
+  {
+    title: "تعزيز إدارة الحشود صحياً",
+    value: "ربط لحظي",
+    description: "الربط بين البيانات الصحية اللحظية وتوزيع الكثافات يرفع الجاهزية الميدانية.",
+    icon: HeartPulse,
+  },
+  {
+    title: "كفاءة توزيع الفرق الطبية",
+    value: "توجيه ذكي",
+    description: "إدارة الموارد الطبية بناءً على الإنذار الفعلي واللحظي عبر المنصة.",
     icon: BarChart3,
   },
-  {
-    title: "حوكمة واضحة",
-    description: "أدوار وصلاحيات دقيقة مع سجل تدقيق على كل خطوة.",
-    icon: CheckCircle2,
-  },
-  {
-    title: "دورة أسرع",
-    description: "تقليل زمن الوصول من الفكرة إلى النموذج الأولي.",
-    icon: TimerReset,
-  },
 ]
 
-export default function Login() {
-  const router = useRouter()
-  const [loadingRole, setLoadingRole] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  const login = async (role: string) => {
-    setLoadingRole(role)
-    setError(null)
-    try {
-      const res = await fetch("/api/auth/demo-login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role }),
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || "تعذر إنشاء جلسة الديمو")
-      router.push("/dashboard")
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "حدث خطأ")
-    } finally {
-      setLoadingRole(null)
-    }
-  }
-
+export default function HomePage() {
   return (
-    <div className={`${kufi.className} relative min-h-screen overflow-hidden bg-[#020617] text-white`}>
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_24%,rgba(56,189,248,0.18),transparent_35%),radial-gradient(circle_at_82%_16%,rgba(16,185,129,0.15),transparent_36%),radial-gradient(circle_at_50%_92%,rgba(14,116,144,0.24),transparent_45%),linear-gradient(180deg,#020617_0%,#031126_42%,#071a34_100%)]" />
-      <div className="pointer-events-none absolute -right-28 top-16 h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl" />
-      <div className="pointer-events-none absolute -left-24 bottom-8 h-80 w-80 rounded-full bg-emerald-400/10 blur-3xl" />
-
-      <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-5 py-10">
-        <div className="overflow-hidden rounded-[32px] border border-white/15 bg-slate-950/45 shadow-2xl shadow-slate-950/60 backdrop-blur-xl">
-          <div className="grid lg:grid-cols-[1.08fr_1fr]">
-            <section className="relative border-b border-white/10 p-7 sm:p-10 lg:border-b-0 lg:border-l">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs text-slate-200">
-                <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                منصة ابتكار صحّي تنفيذية
-              </div>
-              <h1 className="mt-4 text-3xl font-bold leading-tight text-white sm:text-4xl">
-                درع الابتكار
-                <span className="mt-2 block text-cyan-300">تجمع الطائف الصحي</span>
-              </h1>
-              <p className="mt-4 max-w-xl text-sm leading-7 text-slate-200/90">
-                موقع متكامل لإدارة رحلة الابتكار من تحديات الميدان حتى التنفيذ وقياس الأثر. صمم لتمكين الفرق الطبية والإدارية من اتخاذ قرار أسرع وأكثر دقة.
-              </p>
-
-              <div className="mt-8 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-white/15 bg-white/5 p-4">
-                  <p className="text-xs text-slate-300">دورة الابتكار</p>
-                  <p className="mt-1 text-lg font-semibold text-cyan-200">8 مراحل مترابطة</p>
-                </div>
-                <div className="rounded-2xl border border-white/15 bg-white/5 p-4">
-                  <p className="text-xs text-slate-300">التحكيم الهجين</p>
-                  <p className="mt-1 text-lg font-semibold text-indigo-200">AI + لجنة بشرية</p>
-                </div>
-              </div>
-            </section>
-
-            <section className="p-7 sm:p-10">
-              <h2 className="text-2xl font-semibold text-white">ابدأ التجربة</h2>
-              <p className="mt-2 text-sm text-slate-300">اختر الدور للدخول الفوري إلى بيئة العرض بصلاحيات حقيقية.</p>
-
-              <div className="mt-6 grid gap-3">
-                {roleButtons.map((item) => {
-                  const Icon = item.icon
-                  return (
-                    <button
-                      key={item.key}
-                      onClick={() => void login(item.key)}
-                      disabled={Boolean(loadingRole)}
-                      className={`group rounded-2xl border bg-gradient-to-l p-4 text-right transition disabled:opacity-60 ${item.className}`}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-base font-semibold text-white">
-                            {loadingRole === item.key ? "جارٍ الدخول..." : item.label}
-                          </p>
-                          <p className="mt-1 text-xs text-slate-200/90">{item.subtitle}</p>
-                        </div>
-                        <div className="rounded-xl border border-white/20 bg-white/10 p-2.5 text-slate-100 transition group-hover:bg-white/15">
-                          <Icon size={16} />
-                        </div>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-
-              <div className="mt-5 rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-100">
-                Demo Mode: تمكين استعراض المسار الكامل بدون حسابات إنتاجية.
-              </div>
-            </section>
-          </div>
-        </div>
-
-        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {highlights.map((item) => {
-            const Icon = item.icon
-            return (
-              <article key={item.title} className="rounded-2xl border border-white/15 bg-white/5 p-4 backdrop-blur">
-                <div className="mb-3 inline-flex rounded-xl border border-white/20 bg-white/10 p-2 text-cyan-200">
-                  <Icon size={16} />
-                </div>
-                <h3 className="text-sm font-semibold text-white">{item.title}</h3>
-                <p className="mt-1 text-xs leading-6 text-slate-300">{item.description}</p>
-              </article>
-            )
-          })}
+    <main className={`${kufi.className} min-h-screen bg-slate-100 text-slate-900`} dir="rtl">
+      <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8 lg:py-14">
+        <section className="rounded-3xl border border-slate-200 bg-white px-6 py-8 shadow-xl shadow-slate-300/30 sm:px-10 sm:py-10">
+          <p className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-4 py-1 text-xs font-semibold text-sky-700">
+            <Activity size={14} />
+            منصة المسار الصحي التنبؤية
+          </p>
+          <h1 className="mt-4 text-3xl font-extrabold leading-tight sm:text-4xl lg:text-5xl">
+            بروتوكول الاستجابة الميدانية للحشود الصحية
+          </h1>
+          <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base">
+            صفحة تعريفية لنموذج عمل رقمي يربط بين أجهزة الاستشعار القابلة للارتداء، وبوابات الاستقبال، وتحليلات الذكاء
+            الاصطناعي؛ للتنبؤ المبكر بالمخاطر الصحية في المشاعر ودعم القرارات التشغيلية بسرعة ودقة.
+          </p>
         </section>
 
-        {error && (
-          <p className="w-full rounded-xl border border-red-500/40 bg-red-500/15 px-4 py-2 text-center text-sm text-red-100">
-            {error}
-          </p>
-        )}
+        <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-lg shadow-slate-300/20 sm:p-8">
+          <h2 className="text-2xl font-bold">دورة تدفق البيانات (Data Flow)</h2>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {flowItems.map((item) => {
+              const Icon = item.icon
+              return (
+                <article key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <div className="mb-3 inline-flex rounded-xl bg-sky-100 p-2 text-sky-700">
+                    <Icon size={18} />
+                  </div>
+                  <h3 className="text-lg font-bold leading-8">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-7 text-slate-600">{item.description}</p>
+                </article>
+              )
+            })}
+          </div>
+        </section>
+
+        <section className="mt-8">
+          <h2 className="text-2xl font-bold">مستويات الاستجابة</h2>
+          <div className="mt-5 grid gap-4 lg:grid-cols-3">
+            {responseLevels.map((level) => {
+              const Icon = level.icon
+              return (
+                <article key={level.title} className={`rounded-2xl border bg-gradient-to-b p-5 ${level.color}`}>
+                  <div className="mb-3 flex items-center justify-between">
+                    <span className="rounded-full border border-black/10 bg-white/70 px-3 py-1 text-xs font-bold">{level.badge}</span>
+                    <div className="rounded-xl border border-black/10 bg-white/80 p-2 text-slate-700">
+                      <Icon size={17} />
+                    </div>
+                  </div>
+                  <h3 className="text-lg font-extrabold">{level.title}</h3>
+                  <p className="mt-2 text-sm leading-7 text-slate-700">{level.description}</p>
+                </article>
+              )
+            })}
+          </div>
+        </section>
+
+        <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-lg shadow-slate-300/20 sm:p-8">
+          <h2 className="text-2xl font-bold">الأثر التشغيلي والصحي المتوقع</h2>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {impactItems.map((item) => {
+              const Icon = item.icon
+              return (
+                <article key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <div className="mb-3 inline-flex rounded-xl bg-emerald-100 p-2 text-emerald-700">
+                    <Icon size={18} />
+                  </div>
+                  <p className="text-sm font-semibold text-emerald-700">{item.value}</p>
+                  <h3 className="mt-1 text-lg font-extrabold">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-7 text-slate-600">{item.description}</p>
+                </article>
+              )
+            })}
+          </div>
+        </section>
       </div>
-    </div>
+    </main>
   )
 }
